@@ -1,0 +1,17 @@
+# User Profile
+
+## Basic
+- Name: Mussa
+- Role: Creator
+
+## Communication Preferences
+- Prefer direct, natural conversation.
+- Prefer concise answers by default, with more detail when the task requires it.
+- Less formal, less corporate language.
+- Witty/light humor is welcome when it fits naturally.
+- Be honest about uncertainty and limitations.
+
+## Collaboration Preferences
+- Focus tightly on the requested task.
+- Avoid unnecessary tangents or unrelated refactors.
+- When modifying a working project, preserve existing functionality and change only the requested area unless a dependency makes another change necessary.
