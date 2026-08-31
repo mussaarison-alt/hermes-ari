@@ -1,0 +1,431 @@
+import { NextResponse } from "next/server";
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";
+import { getHermesMemoryDirectory } from "../../../lib/hermes-runtime";
+
+const OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
+const ARI_MODEL = "qwen3:1.7b";
+const MAX_MEMORY_CHARS = 3_000;
+const DEFAULT_WORKSPACE = path.join(os.homedir(), "Desktop", "ARI-workspace");
+
+const ARI_SYSTEM_PROMPT = `
+You are ARI, the user-facing AI assistant inside the Hermes application.
+
+IDENTITY
+- Your name is ARI.
+- Hermes is the underlying runtime/platform.
+- Do not call yourself Hermes Agent unless the user explicitly asks about the underlying system.
+- Do not volunteer the model or provider name.
+
+PERSONALITY
+- Direct.
+- Calm.
+- Intelligent.
+- Precise.
+- Concise by default.
+- Practical and proactive.
+- Honest about uncertainty.
+- Willing to correct incorrect assumptions.
+- Never fabricate actions, results, connections, or facts.
+- Never claim something succeeded without evidence.
+
+COMMUNICATION
+- Lead with the answer.
+- Use clear structure when useful.
+- Avoid filler and unnecessary enthusiasm.
+- When debugging, identify the likely cause first and give the next action.
+- When a decision is needed, make a clear recommendation.
+- Match the user's level of technical detail.
+
+WORKSPACE TOOLS
+- You can inspect the user's sandbox workspace with list_directory.
+- You can read text files inside the sandbox workspace with read_file.
+- Only use the provided workspace tools for filesystem inspection.
+- When the user asks for file contents, you MUST use read_file before answering.
+- Never claim to have read or modified a file unless a tool result proves it.
+- Do not request or invent absolute filesystem paths outside the tool boundary.
+`;
+
+type MessageRole = "system" | "user" | "assistant" | "tool";
+
+type IncomingMessage = {
+  role: MessageRole;
+  content: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCall[];
+};
+
+type ToolCall = {
+  id?: string;
+  type?: string;
+  function?: {
+    name?: string;
+    arguments?: Record<string, unknown> | string;
+  };
+};
+
+type OllamaMessage = {
+  role?: MessageRole;
+  content?: string;
+  tool_calls?: ToolCall[];
+};
+
+type OllamaResponse = {
+  message?: OllamaMessage;
+  done?: boolean;
+};
+
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "list_directory",
+      description:
+        "List files and directories inside ARI's allowed sandbox workspace. Use this when the user asks what is in their ARI workspace or asks you to inspect its directory contents.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "Optional relative path inside the ARI workspace. Leave empty to list the workspace root.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_file",
+      description:
+        "Read the UTF-8 text contents of a file inside ARI's allowed sandbox workspace. Use this whenever the user asks you to read, quote, summarize, or explain a file by name or path.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "Relative file path inside the ARI workspace, such as notes.txt. Do not use absolute paths.",
+          },
+        },
+        required: ["path"],
+      },
+    },
+  },
+];
+
+function getWorkspaceRoot() {
+  const configured = process.env.ARI_WORKSPACE?.trim();
+  return path.resolve(configured || DEFAULT_WORKSPACE);
+}
+
+function normalizeToolArguments(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to empty args.
+    }
+  }
+  return {};
+}
+
+function resolveWorkspacePath(relativePath: unknown) {
+  const root = getWorkspaceRoot();
+  const candidate =
+    typeof relativePath === "string" && relativePath.trim()
+      ? relativePath.trim()
+      : ".";
+  const absolute = path.resolve(root, candidate);
+  const relative = path.relative(root, absolute);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Workspace path is outside the allowed ARI workspace.");
+  }
+  return absolute;
+}
+
+async function listDirectory(relativePath: unknown) {
+  const root = getWorkspaceRoot();
+  await fs.mkdir(root, { recursive: true });
+  const absolute = resolveWorkspacePath(relativePath);
+  const entries = await fs.readdir(absolute, { withFileTypes: true });
+  return {
+    success: true,
+    workspace: root,
+    path: path.relative(root, absolute) || ".",
+    entries: entries
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((entry) => ({
+        name: entry.name,
+        type: entry.isDirectory() ? "directory" : "file",
+      })),
+  };
+}
+
+
+async function readFile(relativePath: unknown) {
+  const relative =
+    typeof relativePath === "string" ? relativePath.trim() : "";
+  if (!relative) {
+    throw new Error("A relative file path is required.");
+  }
+  const absolute = resolveWorkspacePath(relative);
+  const stat = await fs.stat(absolute);
+  if (!stat.isFile()) {
+    throw new Error("The requested workspace path is not a file.");
+  }
+  const content = await fs.readFile(absolute, "utf8");
+  return {
+    success: true,
+    workspace: getWorkspaceRoot(),
+    path: path.relative(getWorkspaceRoot(), absolute),
+    content,
+  };
+}
+
+async function executeTool(toolCall: ToolCall) {
+  const name = toolCall.function?.name;
+  const args = normalizeToolArguments(toolCall.function?.arguments);
+  try {
+    if (name === "list_directory") {
+      return await listDirectory(args.path);
+    }
+    if (name === "read_file") {
+      return await readFile(args.path);
+    }
+    return { success: false, error: `Unknown tool: ${name || "(missing)"}` };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Tool execution failed.",
+    };
+  }
+}
+
+async function loadPersistentMemory(): Promise<string> {
+  const directory = getHermesMemoryDirectory();
+  const [memory, user] = await Promise.all(
+    ["MEMORY.md", "USER.md"].map(async (filename) => {
+      try {
+        return await fs.readFile(path.join(directory, filename), "utf8");
+      } catch {
+        return "";
+      }
+    }),
+  );
+  const sections = [
+    memory.trim() ? `MEMORY.md\n${memory.trim()}` : "",
+    user.trim() ? `USER.md\n${user.trim()}` : "",
+  ].filter(Boolean);
+  return sections.join("\n\n").slice(0, MAX_MEMORY_CHARS);
+}
+
+function sseResponse(content: string) {
+  const encoder = new TextEncoder();
+  const payload = `data: ${JSON.stringify({
+    id: "chatcmpl-ari",
+    object: "chat.completion.chunk",
+    model: ARI_MODEL,
+    choices: [{ index: 0, delta: { content }, finish_reason: null }],
+  })}\n\ndata: ${JSON.stringify({
+    id: "chatcmpl-ari",
+    object: "chat.completion.chunk",
+    model: ARI_MODEL,
+    choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+  })}\n\ndata: [DONE]\n\n`;
+  return new Response(payload, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+async function askOllama(messages: IncomingMessage[], stream: boolean, voice: boolean) {
+  return fetch(OLLAMA_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ARI_MODEL,
+      messages: messages.map((message) => {
+        if (voice && message.role === "user" && !message.content.endsWith("/no_think")) {
+          return { ...message, content: `${message.content} /no_think` };
+        }
+        return message;
+      }),
+      tools: TOOLS,
+      stream,
+      think: false,
+      keep_alive: -1,
+      options: {
+        temperature: voice ? 0.2 : 0.4,
+        top_k: 20,
+        top_p: 0.9,
+        ...(voice ? { num_predict: 100, num_ctx: 4096 } : {}),
+      },
+    }),
+    cache: "no-store",
+  });
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      messages?: IncomingMessage[];
+      voice?: boolean;
+    };
+    const persistentMemory = await loadPersistentMemory();
+    const incomingMessages = Array.isArray(body.messages)
+      ? body.messages.filter(
+          (message) =>
+            message &&
+            typeof message.role === "string" &&
+            typeof message.content === "string",
+        )
+      : [];
+    const isVoiceRequest = body.voice === true;
+    const memoryContext = persistentMemory
+      ? `\n\nPERSISTENT MEMORY\nUse the following user-approved Hermes memory as context. Do not invent memories and do not disclose the storage mechanism unless asked.\n\n${persistentMemory}`
+      : "";
+    const boundedMessages = isVoiceRequest
+      ? incomingMessages.slice(-4).map((message) => ({
+          ...message,
+          content: message.content.slice(-700),
+        }))
+      : incomingMessages;
+    const messages: IncomingMessage[] = [
+      {
+        role: "system",
+        content: isVoiceRequest
+          ? `You are ARI. Reply naturally, directly, and briefly.\n- No analysis or reasoning.\n- Usually 1-2 short sentences.\n- Answer the user's request immediately.\n- Use list_directory only when the user's request actually requires inspecting the ARI workspace.\n${memoryContext}`
+          : `${ARI_SYSTEM_PROMPT}${memoryContext}`,
+      },
+      ...boundedMessages,
+    ];
+
+    // First pass: non-streaming only so we can safely inspect structured tool calls.
+    const planningResponse = await askOllama(messages, false, isVoiceRequest);
+    if (!planningResponse.ok) {
+      const errorText = await planningResponse.text();
+      return NextResponse.json(
+        { error: errorText || `Ollama returned HTTP ${planningResponse.status}.` },
+        { status: planningResponse.status },
+      );
+    }
+    const planning = (await planningResponse.json()) as OllamaResponse;
+    const plannedMessage = planning.message;
+    const toolCalls = Array.isArray(plannedMessage?.tool_calls)
+      ? plannedMessage.tool_calls
+      : [];
+
+    if (!toolCalls.length) {
+      return sseResponse(plannedMessage?.content || "");
+    }
+
+    const toolMessages: IncomingMessage[] = [...messages];
+    if (plannedMessage) {
+      toolMessages.push({
+        role: "assistant",
+        content: plannedMessage.content || "",
+        tool_calls: toolCalls,
+      });
+    }
+
+    for (const toolCall of toolCalls) {
+      const result = await executeTool(toolCall);
+      toolMessages.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(result),
+      });
+    }
+
+    const finalResponse = await askOllama(toolMessages, true, isVoiceRequest);
+    if (!finalResponse.ok || !finalResponse.body) {
+      const errorText = await finalResponse.text();
+      return NextResponse.json(
+        { error: errorText || `Ollama returned HTTP ${finalResponse.status}.` },
+        { status: finalResponse.ok ? 502 : finalResponse.status },
+      );
+    }
+
+    // Adapt native Ollama JSONL streaming into the UI's existing SSE contract.
+    const reader = finalResponse.body.getReader();
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        let buffer = "";
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? "";
+            for (const raw of lines) {
+              if (!raw.trim()) continue;
+              try {
+                const chunk = JSON.parse(raw) as OllamaResponse;
+                const content = chunk.message?.content ?? "";
+                if (content) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        id: "chatcmpl-ari",
+                        object: "chat.completion.chunk",
+                        model: ARI_MODEL,
+                        choices: [{ index: 0, delta: { content }, finish_reason: null }],
+                      })}\n\n`,
+                    ),
+                  );
+                }
+                if (chunk.done) {
+                  controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                }
+              } catch {
+                // Ignore malformed JSONL fragments.
+              }
+            }
+          }
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          reader.releaseLock();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  } catch (error) {
+    console.error("ARI API error:", error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to connect to ARI.",
+      },
+      { status: 500 },
+    );
+  }
+}

@@ -12,9 +12,9 @@ export default function StatCard({
   accent = "teal",
 }: StatCardProps) {
   const accentColor = {
-    yellow: "#fff000",
-    cyan: "#00e5ff",
-    teal: "#00e5b0",
+    yellow: "#56d9f3",
+    cyan: "#2db9e3",
+    teal: "#77d7ee",
   }[accent];
 
   return (
