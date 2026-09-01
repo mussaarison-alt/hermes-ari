@@ -9,7 +9,7 @@ import {
 
 export default function MissionControl() {
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+    <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-white/70">
 
       {/* HEADER */}
 
@@ -24,12 +24,12 @@ export default function MissionControl() {
             Agent Operations
           </h2>
 
-          <p className="mt-1 text-xs text-[#6f688f]">
+          <p className="mt-1 text-xs text-black/45">
             Real-time visualization of Hermes activity
           </p>
         </div>
 
-        <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] text-[#6f688f] transition hover:border-[#00e5ff]/30 hover:text-[#00e5ff]">
+        <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] text-black/45 transition hover:border-[#00e5ff]/30 hover:text-[#00e5ff]">
           <RefreshCw size={15} />
         </button>
 
@@ -38,7 +38,7 @@ export default function MissionControl() {
 
       {/* CONTROL AREA */}
 
-      <div className="relative mx-6 mb-6 mt-4 overflow-hidden rounded-xl border border-[#00e5ff]/20 bg-[#07031f]">
+      <div className="relative mx-6 mb-6 mt-4 overflow-hidden rounded-xl border border-[#00e5ff]/20 bg-white">
 
         {/* TECHNICAL GRID */}
 
@@ -70,7 +70,7 @@ export default function MissionControl() {
 
               <div className="absolute inset-5 rounded-full border border-[#00e5ff]/20" />
 
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[#110545] shadow-[0_0_35px_rgba(0,229,255,0.15)]">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-white/60 shadow-[0_0_35px_rgba(0,229,255,0.15)]">
 
                 <AriLogo
                   variant="symbol"
@@ -91,7 +91,7 @@ export default function MissionControl() {
 
             </div>
 
-            <p className="mt-2 text-[10px] text-[#6f688f]">
+            <p className="mt-2 text-[10px] text-black/45">
               Listening · Analyzing · Executing
             </p>
 
@@ -104,7 +104,7 @@ export default function MissionControl() {
 
             {/* GLOBAL OPERATIONS */}
 
-            <div className="rounded-xl border border-white/[0.1] bg-[#0d0730]/80 p-5">
+            <div className="rounded-xl border border-white/[0.1] bg-white/70/80 p-5">
 
               <Globe2
                 size={18}
@@ -119,7 +119,7 @@ export default function MissionControl() {
                 12
               </p>
 
-              <p className="mt-1 text-xs text-[#6f688f]">
+              <p className="mt-1 text-xs text-black/45">
                 Active Regions
               </p>
 
@@ -128,7 +128,7 @@ export default function MissionControl() {
 
             {/* DATA STREAMS */}
 
-            <div className="rounded-xl border border-white/[0.1] bg-[#0d0730]/80 p-5">
+            <div className="rounded-xl border border-white/[0.1] bg-white/70/80 p-5">
 
               <Database
                 size={18}
@@ -143,7 +143,7 @@ export default function MissionControl() {
                 8
               </p>
 
-              <p className="mt-1 text-xs text-[#6f688f]">
+              <p className="mt-1 text-xs text-black/45">
                 Live Feeds
               </p>
 
@@ -152,7 +152,7 @@ export default function MissionControl() {
 
             {/* SECURITY */}
 
-            <div className="rounded-xl border border-white/[0.1] bg-[#0d0730]/80 p-5">
+            <div className="rounded-xl border border-white/[0.1] bg-white/70/80 p-5">
 
               <ShieldCheck
                 size={18}
@@ -176,7 +176,7 @@ export default function MissionControl() {
 
               </div>
 
-              <p className="mt-1 text-xs text-[#6f688f]">
+              <p className="mt-1 text-xs text-black/45">
                 All systems safe
               </p>
 

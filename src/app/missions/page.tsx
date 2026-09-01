@@ -270,7 +270,7 @@ export default function MissionsPage() {
   }
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
       <Sidebar />
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -288,12 +288,12 @@ export default function MissionsPage() {
                 ARI Mission Console
               </h1>
 
-              <p className="mt-2 text-sm text-[#6f688f]">
+              <p className="mt-2 text-sm text-black/45">
                 Give ARI instructions, monitor execution, and review results.
               </p>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/[0.1] bg-white/70">
 
               {/* STATUS */}
 
@@ -320,7 +320,7 @@ export default function MissionsPage() {
 
                 </div>
 
-                <span className="text-xs text-[#6f688f]">
+                <span className="text-xs text-black/45">
                   Hermes Agent
                 </span>
               </div>
@@ -333,7 +333,7 @@ export default function MissionsPage() {
                   {/* TOOL ACTIVITY */}
 
                   {activities.length > 0 && (
-                    <div className="rounded-2xl border border-[#00e5ff]/15 bg-[#07031f] p-4">
+                    <div className="rounded-2xl border border-[#00e5ff]/15 bg-white p-4">
 
                       <div className="mb-3 flex items-center gap-2">
 
@@ -359,7 +359,7 @@ export default function MissionsPage() {
                           return (
                             <div
                               key={activity.id}
-                              className="rounded-lg border border-white/[0.06] bg-[#0d0730] px-3 py-3"
+                              className="rounded-lg border border-white/[0.06] bg-white/70 px-3 py-3"
                             >
                               <div className="flex items-center justify-between gap-4">
 
@@ -371,7 +371,7 @@ export default function MissionsPage() {
 
                                   <div className="min-w-0">
 
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#6f688f]">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-black/45">
                                       {toolInfo.name}
                                     </p>
 
@@ -455,8 +455,8 @@ export default function MissionsPage() {
                         <div
                           className={`rounded-2xl border p-4 ${
                             isUser
-                              ? "rounded-tr-sm border-[#fff000]/15 bg-[#110545]"
-                              : "rounded-tl-sm border-[#00e5ff]/15 bg-[#07031f]"
+                              ? "rounded-tr-sm border-[#fff000]/15 bg-white/60"
+                              : "rounded-tl-sm border-[#00e5ff]/15 bg-white"
                           }`}
                         >
 
@@ -484,7 +484,7 @@ export default function MissionsPage() {
 
               <div className="border-t border-white/[0.08] p-5">
 
-                <div className="flex items-end gap-3 rounded-xl border border-white/[0.1] bg-[#07031f] p-3 focus-within:border-[#00e5ff]/30">
+                <div className="flex items-end gap-3 rounded-xl border border-white/[0.1] bg-white p-3 focus-within:border-[#00e5ff]/30">
 
                   <textarea
                     rows={2}
@@ -516,7 +516,7 @@ export default function MissionsPage() {
 
                 </div>
 
-                <p className="mt-2 text-[10px] text-[#6f688f]">
+                <p className="mt-2 text-[10px] text-black/45">
                   Connected to Hermes Agent · Live tool activity
                 </p>
 

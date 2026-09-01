@@ -684,7 +684,7 @@ State clearly that the analysis was based on the beginning and end of the file.
     ]);
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
 
       <Sidebar />
 
@@ -710,7 +710,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                   Knowledge Base
                 </h1>
 
-                <p className="mt-2 text-sm text-[#6f688f]">
+                <p className="mt-2 text-sm text-black/45">
                   Manage the information ARI can access.
                 </p>
 
@@ -720,7 +720,7 @@ State clearly that the analysis was based on the beginning and end of the file.
 
                 {/* FILE UPLOAD */}
 
-                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/[0.1] bg-[#0d0730] px-4 py-2.5 text-sm font-semibold text-[#a9a3c4] transition hover:border-[#00e5ff]/30 hover:text-white">
+                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/[0.1] bg-white/70 px-4 py-2.5 text-sm font-semibold text-[#a9a3c4] transition hover:border-[#00e5ff]/30 hover:text-white">
 
                   {uploading ? (
                     <Loader2
@@ -899,7 +899,7 @@ State clearly that the analysis was based on the beginning and end of the file.
 
             {/* SEARCH */}
 
-            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/[0.1] bg-[#0d0730] p-4">
+            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/[0.1] bg-white/70 p-4">
 
               <div className="flex items-center gap-2">
 
@@ -933,11 +933,11 @@ State clearly that the analysis was based on the beginning and end of the file.
 
               </div>
 
-              <div className="flex h-9 w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-[#07031f] px-3">
+              <div className="flex h-9 w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-white px-3">
 
                 <Search
                   size={15}
-                  className="text-[#6f688f]"
+                  className="text-black/45"
                 />
 
                 <input
@@ -961,7 +961,7 @@ State clearly that the analysis was based on the beginning and end of the file.
             {/* PROJECT ROOT */}
 
             {data && (
-              <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/[0.1] bg-[#0d0730] px-5 py-4">
+              <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/[0.1] bg-white/70 px-5 py-4">
 
                 <FolderOpen
                   size={17}
@@ -970,7 +970,7 @@ State clearly that the analysis was based on the beginning and end of the file.
 
                 <div className="min-w-0">
 
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
                     Indexed project
                   </p>
 
@@ -985,9 +985,9 @@ State clearly that the analysis was based on the beginning and end of the file.
 
             {/* TABLE */}
 
-            <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.1] bg-white/70">
 
-              <div className="grid grid-cols-[1fr_130px_110px_100px_50px] border-b border-white/[0.08] px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+              <div className="grid grid-cols-[1fr_130px_110px_100px_50px] border-b border-white/[0.08] px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-black/45">
 
                 <span>
                   Knowledge Item
@@ -1020,7 +1020,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                       className="mx-auto animate-spin text-[#00e5ff]"
                     />
 
-                    <p className="mt-3 text-sm text-[#6f688f]">
+                    <p className="mt-3 text-sm text-black/45">
                       Scanning project files...
                     </p>
 
@@ -1043,7 +1043,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                       No matching files
                     </p>
 
-                    <p className="mt-2 text-xs text-[#6f688f]">
+                    <p className="mt-2 text-xs text-black/45">
                       Try another search.
                     </p>
 
@@ -1067,7 +1067,7 @@ State clearly that the analysis was based on the beginning and end of the file.
 
                       <div className="flex min-w-0 items-center gap-4">
 
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#00e5ff]/15 bg-[#07031f]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#00e5ff]/15 bg-white">
 
                           <FileText
                             size={18}
@@ -1082,7 +1082,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                             {file.name}
                           </p>
 
-                          <p className="mt-1 truncate text-xs text-[#6f688f]">
+                          <p className="mt-1 truncate text-xs text-black/45">
                             {file.path}
                           </p>
 
@@ -1115,7 +1115,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                         )}
                       </span>
 
-                      <span className="flex h-8 w-8 items-center justify-center text-[#6f688f]">
+                      <span className="flex h-8 w-8 items-center justify-center text-black/45">
 
                         <MoreHorizontal
                           size={16}
@@ -1197,7 +1197,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                         Preview unavailable
                       </p>
 
-                      <p className="mt-2 text-xs text-[#6f688f]">
+                      <p className="mt-2 text-xs text-black/45">
                         {previewError}
                       </p>
 
@@ -1227,7 +1227,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                     Ask ARI about this file
                   </h3>
 
-                  <p className="mt-1 text-xs leading-5 text-[#6f688f]">
+                  <p className="mt-1 text-xs leading-5 text-black/45">
                     ARI will analyze the selected file directly.
                   </p>
 
@@ -1432,7 +1432,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                           Ready for analysis
                         </p>
 
-                        <p className="mt-2 text-xs text-[#6f688f]">
+                        <p className="mt-2 text-xs text-black/45">
                           Ask ARI a question about the selected file.
                         </p>
 
@@ -1461,7 +1461,7 @@ State clearly that the analysis was based on the beginning and end of the file.
                     }
                     rows={3}
                     placeholder="Ask ARI something about this file..."
-                    className="w-full resize-none rounded-xl border border-white/[0.1] bg-[#07031f] px-4 py-3 text-sm text-white outline-none placeholder:text-[#4f496d] focus:border-[#fff000]/40 disabled:opacity-50"
+                    className="w-full resize-none rounded-xl border border-white/[0.1] bg-white px-4 py-3 text-sm text-white outline-none placeholder:text-[#4f496d] focus:border-[#fff000]/40 disabled:opacity-50"
                   />
 
                   <button
@@ -1532,11 +1532,11 @@ function KnowledgeCard({
   }[accent];
 
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
       <div className="flex items-center justify-between">
 
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
           {label}
         </p>
 
@@ -1551,7 +1551,7 @@ function KnowledgeCard({
         {value}
       </p>
 
-      <p className="mt-2 text-[11px] text-[#6f688f]">
+      <p className="mt-2 text-[11px] text-black/45">
         {detail}
       </p>
 

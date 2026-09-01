@@ -1,30 +1,23 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
-  --hermes-amethyst: #091a38;
-  --hermes-yellow: #a5efff;
-  --hermes-raspberry: #6286c5;
+  --hermes-amethyst: #ffffff;
+  --hermes-yellow: #fff000;
+  --hermes-raspberry: #d7f8f6;
 
-  --hermes-cyan: #52e6ff;
-  --hermes-teal: #88f3ec;
+  --hermes-cyan: #00e5ff;
+  --hermes-teal: #00e5b0;
 
-  --hermes-bg: #020b1d;
-  --hermes-sidebar: #06152e;
-  --hermes-surface: #0a1d3c;
-  --hermes-surface-2: #102850;
+  --hermes-bg: #e2fff5;
+  --hermes-sidebar: #b2e9e2;
+  --hermes-surface: #8cdfda;
+  --hermes-surface-2: #aef3e4;
 
-  --hermes-text: #ecf8ff;
-  --hermes-text-secondary: #b9cce4;
-  --hermes-text-muted: #7790ae;
+  --hermes-text: #f5f3ff;
+  --hermes-text-secondary: #a9a3c4;
+  --hermes-text-muted: #6f688f;
 
-  --hermes-border: rgba(178, 231, 255, 0.16);
-  --hermes-glass: rgba(10, 31, 61, 0.62);
-  --hermes-glass-strong: rgba(8, 25, 52, 0.82);
-  --hermes-chrome: rgba(221, 242, 255, 0.62);
-  --hermes-reflection: rgba(214, 248, 255, 0.1);
-  --font-interface: "Inter", Arial, Helvetica, sans-serif;
-  --font-display: "Orbitron", "Inter", Arial, Helvetica, sans-serif;
+  --hermes-border: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -39,50 +32,15 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at 14% -8%, rgba(75, 211, 255, 0.22), transparent 29%),
-    radial-gradient(circle at 88% 6%, rgba(96, 126, 255, 0.13), transparent 25%),
-    radial-gradient(circle at 70% 82%, rgba(25, 151, 231, 0.1), transparent 31%),
-    linear-gradient(155deg, #03102a 0%, #020b1d 47%, #06162f 100%);
+  background: var(--hermes-bg);
   color: var(--hermes-text);
-  font-family: var(--font-interface);
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 button,
 input,
 textarea {
   font: inherit;
-}
-
-button,
-input,
-textarea,
-select {
-  -webkit-tap-highlight-color: transparent;
-}
-
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--hermes-cyan);
-  outline-offset: 3px;
-}
-
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  letter-spacing: 0.01em;
-}
-
-::selection {
-  background: rgba(82, 230, 255, 0.28);
-  color: #f4fcff;
 }
 
 /* ========================================================================
@@ -94,24 +52,22 @@ h3 {
   --ari-ice: #9fe8ff;
   --ari-cyan: #42dfff;
   --ari-blue: #1599ff;
-  --ari-deep: #07162f;
+  --ari-deep: #ccfff6;
   --ari-halo: rgba(66, 223, 255, 0.16);
 }
 
 body {
   background:
-    radial-gradient(circle at 14% -8%, rgba(75, 211, 255, 0.22), transparent 29%),
-    radial-gradient(circle at 88% 6%, rgba(96, 126, 255, 0.13), transparent 25%),
-    radial-gradient(circle at 70% 82%, rgba(25, 151, 231, 0.1), transparent 31%),
-    linear-gradient(155deg, #03102a 0%, #020b1d 47%, #06162f 100%);
+    radial-gradient(circle at 66% 12%, rgba(18, 110, 185, 0.08), transparent 24%),
+    radial-gradient(circle at 94% 72%, rgba(64, 37, 189, 0.08), transparent 22%),
+    linear-gradient(180deg, #e7fff9 0%, #afbcbd 45%, #e2ebec 100%);
 }
 
 main {
   position: relative;
   background-image:
-    radial-gradient(ellipse at 72% 10%, rgba(100, 229, 255, 0.1), transparent 28%),
-    radial-gradient(ellipse at 28% 82%, rgba(38, 118, 221, 0.08), transparent 31%),
-    linear-gradient(115deg, rgba(255, 255, 255, 0.025), transparent 23%);
+    radial-gradient(circle at 70% 14%, rgba(66, 223, 255, 0.045), transparent 22%),
+    radial-gradient(circle at 30% 80%, rgba(21, 153, 255, 0.035), transparent 24%);
 }
 
 main::before {
@@ -119,20 +75,19 @@ main::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.2;
+  opacity: 0.16;
   background-image:
-    linear-gradient(rgba(135, 225, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(135, 225, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(115deg, transparent 28%, rgba(213, 249, 255, 0.035) 48%, transparent 62%);
-  background-size: 52px 52px, 52px 52px, 100% 100%;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 78%, transparent 100%);
+    linear-gradient(rgba(66, 223, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(66, 223, 255, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, transparent 0%, rgb(250, 241, 241) 18%, rgb(180, 223, 220) 78%, transparent 100%);
 }
 
 /* Sidebar atmosphere */
 main > aside {
   background:
     radial-gradient(circle at 50% 0%, rgba(66, 223, 255, 0.06), transparent 34%),
-    linear-gradient(180deg, #080c1b 0%, #090329 48%, #07051f 100%) !important;
+    linear-gradient(180deg, #afb8b3 0%, #cefff3 48%, #c2e4cc 100%) !important;
   box-shadow: 18px 0 60px rgba(0, 0, 0, 0.26);
 }
 
@@ -147,7 +102,7 @@ main > aside a:hover {
 /* Header */
 main > section > header {
   background:
-    linear-gradient(180deg, rgba(8, 14, 31, 0.93), rgba(7, 3, 31, 0.78)) !important;
+    linear-gradient(180deg, rgba(238, 251, 255, 0.93), rgba(205, 255, 244, 0.78)) !important;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
 }
 
@@ -290,7 +245,7 @@ section.mt-6.overflow-hidden.rounded-2xl.border > div[class*="grid-cols-[180px_1
    existing core into the same cyan orbital language. */
 section.overflow-hidden.rounded-2xl.border > div.relative.mx-6.mb-6.mt-4 > div.relative.flex.min-h-\[300px\].items-center > div.flex.w-\[220px\].shrink-0 > div.relative.flex.h-32.w-32 > div.relative.flex.h-20.w-20 {
   background:
-    radial-gradient(circle at 50% 48%, rgba(190, 249, 255, 0.9), rgba(72, 218, 255, 0.46) 16%, rgba(6, 42, 74, 0.54) 45%, rgba(6, 11, 25, 0.9) 72%) !important;
+    radial-gradient(circle at 50% 48%, rgba(190, 249, 255, 0.9), rgba(72, 218, 255, 0.46) 16%, rgba(6, 42, 74, 0.54) 45%, rgba(38, 168, 219, 0.9) 72%) !important;
   border: 1px solid rgba(136, 240, 255, 0.34);
   box-shadow:
     0 0 18px rgba(66,223,255,0.26),
@@ -500,197 +455,6 @@ main section.rounded-2xl.border > div.rounded-xl.border:hover {
   }
 }
 
-/* ========================================================================
-   FRUTIGER AERO / SERAPHIM SHELL
-   These compatibility rules deliberately skin the existing utility-led UI
-   without changing route, data, component, or Seraphim-core structure.
-   ======================================================================== */
-
-html {
-  background: #e8f2fb;
-}
-
-body {
-  min-width: 320px;
-  background:
-    radial-gradient(circle at 17% 4%, rgba(255, 255, 255, 0.96), transparent 23%),
-    radial-gradient(circle at 81% 17%, rgba(151, 215, 255, 0.3), transparent 26%),
-    radial-gradient(circle at 50% 100%, rgba(177, 221, 255, 0.24), transparent 34%),
-    linear-gradient(145deg, #f8fbff 0%, #eaf3fb 48%, #dce9f7 100%);
-  color: #28394d;
-}
-
-main {
-  isolation: isolate;
-  background:
-    radial-gradient(ellipse at 53% 11%, rgba(255, 255, 255, 0.86), transparent 31%),
-    radial-gradient(ellipse at 73% 70%, rgba(155, 215, 255, 0.18), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.44), rgba(221, 235, 247, 0.3)) !important;
-}
-
-main::before {
-  z-index: -1;
-  opacity: 0.44;
-  background-image:
-    linear-gradient(rgba(116, 183, 229, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(116, 183, 229, 0.07) 1px, transparent 1px),
-    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.76), transparent 44%);
-  background-size: 58px 58px, 58px 58px, 100% 100%;
-}
-
-/* Shared chrome and frosted surfaces across all existing pages. */
-main > aside {
-  border-color: rgba(141, 181, 212, 0.42) !important;
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.88), rgba(220, 234, 247, 0.72)) !important;
-  box-shadow:
-    inset -1px 0 0 rgba(255, 255, 255, 0.88),
-    16px 0 40px rgba(74, 122, 164, 0.1) !important;
-  backdrop-filter: blur(22px) saturate(1.12);
-}
-
-main > aside > div,
-main > aside nav > div {
-  border-color: rgba(141, 181, 212, 0.28) !important;
-}
-
-main > section > header {
-  border-color: rgba(141, 181, 212, 0.5) !important;
-  background:
-    linear-gradient(135deg, rgba(250, 254, 255, 0.94), rgba(213, 229, 244, 0.82)) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.94),
-    0 10px 28px rgba(53, 101, 146, 0.1) !important;
-}
-
-main section.rounded-2xl,
-main div.rounded-2xl.border,
-main [class*="bg-[#07031f]"],
-main [class*="bg-[#0d0730]"],
-main [class*="bg-[#0c0629]"],
-main [class*="bg-[#0a0527]"],
-main [class*="bg-[#05021a]"] {
-  border-color: rgba(135, 179, 212, 0.36) !important;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(221, 235, 247, 0.58)) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.84),
-    0 12px 28px rgba(56, 104, 149, 0.1) !important;
-  backdrop-filter: blur(18px) saturate(1.08);
-}
-
-main [class*="bg-[#110545]"] {
-  border-color: rgba(135, 179, 212, 0.36) !important;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(217, 232, 247, 0.62)) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.84),
-    0 12px 28px rgba(56, 104, 149, 0.1) !important;
-}
-
-main [class*="border-white"],
-main [class*="border-[#00e5ff]"],
-main [class*="border-[#fff000]"],
-main [class*="border-[#a0025c]"],
-main [class*="border-[#ff69b7]"] {
-  border-color: rgba(130, 182, 218, 0.36) !important;
-}
-
-main [class*="text-white"],
-main [class*="text-[#d9d5e8]"],
-main [class*="text-[#d8d4e7]"],
-main [class*="text-[#b8b1d0]"] {
-  color: #27394d !important;
-}
-
-main [class*="text-[#a9a3c4]"],
-main [class*="text-[#aaa4c2]"],
-main [class*="text-[#aaa4c3]"],
-main [class*="text-[#777099]"],
-main [class*="text-[#6f688f]"],
-main [class*="text-[#4f496d]"] {
-  color: #667f99 !important;
-}
-
-main [class*="text-[#fff000]"],
-main [class*="text-[#00e5ff]"],
-main [class*="text-[#00e5b0]"],
-main [class*="text-[#ff69b7]"],
-main [class*="text-[#ff9ad2]"],
-main [class*="text-[#ff9bbd]"] {
-  color: #167fb7 !important;
-}
-
-main [class*="bg-[#fff000]"],
-main [class*="bg-[#00e5ff]"],
-main [class*="bg-[#00e5b0]"],
-main [class*="bg-[#ff69b7]"],
-main [class*="bg-[#a0025c]"] {
-  background-color: rgba(72, 191, 230, 0.17) !important;
-  background-image: none !important;
-}
-
-main button,
-main input,
-main textarea,
-main select {
-  border-color: rgba(135, 179, 212, 0.42);
-}
-
-main button:not([class*="rounded-full"]),
-main a[class*="rounded"] {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
-}
-
-main input,
-main textarea,
-main select {
-  color: #26394e !important;
-  background-color: rgba(255, 255, 255, 0.44) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-main input::placeholder,
-main textarea::placeholder {
-  color: #7a90a5 !important;
-}
-
-main table tr {
-  border-color: rgba(135, 179, 212, 0.22) !important;
-}
-
-main table tr:hover {
-  background: rgba(126, 205, 238, 0.08) !important;
-}
-
-/* Preserve the approved Seraphim geometry and image; skin only its shell. */
-section.overflow-hidden.rounded-2xl.border > div.relative.mx-6.mb-6.mt-4 > div.relative.flex.min-h-\[300px\].items-center > div.flex.w-\[220px\].shrink-0 > div.relative.flex.h-32.w-32 > div.relative.flex.h-20.w-20 {
-  background: #110545 !important;
-  box-shadow:
-    0 0 18px rgba(81, 188, 236, 0.22),
-    0 0 48px rgba(104, 111, 220, 0.12),
-    inset 0 0 22px rgba(205, 247, 255, 0.14) !important;
-}
-
-section.overflow-hidden.rounded-2xl.border > div.relative.mx-6.mb-6.mt-4 > div.relative.flex.min-h-\[300px\].items-center > div.flex.w-\[220px\].shrink-0 > div.relative.flex.h-32.w-32 > div.relative.flex.h-20.w-20 > img {
-  opacity: 1 !important;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  main section.rounded-2xl,
-  main div.rounded-2xl.border {
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-  }
-
-  main section.rounded-2xl:hover,
-  main div.rounded-2xl.border:hover {
-    border-color: rgba(103, 194, 230, 0.52) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      0 16px 32px rgba(56, 104, 149, 0.14) !important;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -698,4 +462,67 @@ section.overflow-hidden.rounded-2xl.border > div.relative.mx-6.mb-6.mt-4 > div.r
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+
+/* ARI nucleus orbital animation */
+@keyframes ari-orbit-fast { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ari-orbit-fast-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes ari-orbit-medium { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ari-orbit-medium-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes ari-orbit-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ari-orbit-slow-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes ari-orbit-fast-vertical { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes ari-orbit-medium-vertical { from { transform: rotate(0deg); } to { transform: rotate(-240deg); } }
+@keyframes ari-orbit-slow-vertical { from { transform: rotate(0deg); } to { transform: rotate(-120deg); } }
+@keyframes ari-orbit-front-fast { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ari-orbit-front-medium { from { transform: rotate(0deg); } to { transform: rotate(240deg); } }
+@keyframes ari-orbit-front-slow { from { transform: rotate(0deg); } to { transform: rotate(120deg); } }
+
+.ari-orbit-fast,
+.ari-orbit-fast-reverse,
+.ari-orbit-medium,
+.ari-orbit-medium-reverse,
+.ari-orbit-slow,
+.ari-orbit-slow-reverse,
+.ari-orbit-fast-vertical,
+.ari-orbit-medium-vertical,
+.ari-orbit-slow-vertical,
+.ari-orbit-front-fast,
+.ari-orbit-front-medium,
+.ari-orbit-front-slow {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(0deg);
+}
+
+.ari-orbit-fast { animation: ari-orbit-fast 2.8s linear infinite; }
+.ari-orbit-fast-reverse { animation: ari-orbit-fast-reverse 2.3s linear infinite; }
+.ari-orbit-medium { animation: ari-orbit-medium 5.5s linear infinite; }
+.ari-orbit-medium-reverse { animation: ari-orbit-medium-reverse 6.5s linear infinite; }
+.ari-orbit-slow { animation: ari-orbit-slow 13s linear infinite; }
+.ari-orbit-slow-reverse { animation: ari-orbit-slow-reverse 15s linear infinite; }
+.ari-orbit-fast-vertical { animation: ari-orbit-fast-vertical 3.6s linear infinite; }
+.ari-orbit-medium-vertical { animation: ari-orbit-medium-vertical 7s linear infinite; }
+.ari-orbit-slow-vertical { animation: ari-orbit-slow-vertical 18s linear infinite; }
+.ari-orbit-front-fast { animation: ari-orbit-front-fast 3.1s linear infinite; }
+.ari-orbit-front-medium { animation: ari-orbit-front-medium 6.2s linear infinite; }
+.ari-orbit-front-slow { animation: ari-orbit-front-slow 14s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ari-orbit-fast,
+  .ari-orbit-fast-reverse,
+  .ari-orbit-medium,
+  .ari-orbit-medium-reverse,
+  .ari-orbit-slow,
+  .ari-orbit-slow-reverse,
+  .ari-orbit-fast-vertical,
+  .ari-orbit-medium-vertical,
+  .ari-orbit-slow-vertical,
+  .ari-orbit-front-fast,
+  .ari-orbit-front-medium,
+  .ari-orbit-front-slow {
+    animation: none;
+  }
+  
 }

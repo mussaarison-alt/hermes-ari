@@ -60,7 +60,7 @@ export default function TasksPage() {
   const queued = missions.filter((m) => m.status === "queued").length;
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
       <Sidebar />
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -81,7 +81,7 @@ export default function TasksPage() {
                   Task Center
                 </h1>
 
-                <p className="mt-2 text-sm text-[#6f688f]">
+                <p className="mt-2 text-sm text-black/45">
                   Monitor, organize, and manage ARI tasks.
                 </p>
               </div>
@@ -129,7 +129,7 @@ export default function TasksPage() {
 
             {/* FILTER BAR */}
 
-            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/[0.1] bg-[#0d0730] p-4">
+            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/[0.1] bg-white/70 p-4">
 
               <div className="flex items-center gap-2">
                 <button
@@ -181,10 +181,10 @@ export default function TasksPage() {
                 </button>
               </div>
 
-              <div className="flex h-9 w-[250px] items-center gap-2 rounded-lg border border-white/[0.08] bg-[#07031f] px-3">
+              <div className="flex h-9 w-[250px] items-center gap-2 rounded-lg border border-white/[0.08] bg-white px-3">
                 <Search
                   size={15}
-                  className="text-[#6f688f]"
+                  className="text-black/45"
                 />
 
                 <input
@@ -198,9 +198,9 @@ export default function TasksPage() {
 
             {/* TASK LIST */}
 
-            <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.1] bg-white/70">
 
-              <div className="grid grid-cols-[1fr_120px_120px_100px_50px] border-b border-white/[0.08] px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+              <div className="grid grid-cols-[1fr_120px_120px_100px_50px] border-b border-white/[0.08] px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-black/45">
                 <span>Task</span>
                 <span>Status</span>
                 <span>Priority</span>
@@ -218,7 +218,7 @@ export default function TasksPage() {
                       {task.objective}
                     </p>
 
-                    <p className="mt-1 truncate text-xs text-[#6f688f]">
+                    <p className="mt-1 truncate text-xs text-black/45">
                       {task.response || "No response recorded yet."}
                     </p>
                   </div>
@@ -235,7 +235,7 @@ export default function TasksPage() {
                     {new Date(task.createdAt).toLocaleDateString()}
                   </span>
 
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6f688f] transition hover:bg-white/[0.04] hover:text-white">
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg text-black/45 transition hover:bg-white/[0.04] hover:text-white">
                     <MoreHorizontal size={16} />
                   </button>
                 </div>
@@ -267,9 +267,9 @@ function SummaryCard({
   }[accent];
 
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
           {label}
         </p>
 
@@ -336,7 +336,7 @@ function Priority({
       ? "text-[#ff69b7] bg-[#a0025c]/10 border-[#a0025c]/30"
       : priority === "Normal"
         ? "text-[#fff000] bg-[#fff000]/[0.05] border-[#fff000]/20"
-        : "text-[#6f688f] bg-white/[0.03] border-white/[0.08]";
+        : "text-black/45 bg-white/[0.03] border-white/[0.08]";
 
   return (
     <span

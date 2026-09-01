@@ -2,13 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import Sidebar from "../components/sidebar";
-import Topbar from "../components/topbar";
-import StatCard from "../components/stat-card";
-import MissionControl from "../components/mission-control";
-import OperationsPanel from "../components/operations-panel";
+import AriCore from "../components/ari-core";
 import NewMission from "../components/new-mission";
-import AriVoiceConsole from "../components/ari-voice-console";
+import Sidebar from "../components/sidebar";
+import StatCard from "../components/stat-card";
+import Topbar from "../components/topbar";
 
 type SavedMission = {
   id: string;
@@ -150,7 +148,7 @@ export default function Home() {
   }, [missions]);
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f]">
+    <main className="flex h-screen overflow-hidden bg-white">
       <Sidebar />
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -158,7 +156,6 @@ export default function Home() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1280px] px-8 py-8">
-
             {/* PAGE HEADER */}
 
             <div className="mb-7 flex items-end justify-between">
@@ -167,9 +164,9 @@ export default function Home() {
                   Welcome back, Mussa.
                 </p>
 
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-700">
                   Here's what's happening with{" "}
-                  <span className="text-[#fff000]">
+                  <span className="text-[#169fd5]">
                     ARI
                   </span>{" "}
                   today.
@@ -192,7 +189,7 @@ export default function Home() {
                     ? `${missions.length} total`
                     : "NO DATA"
                 }
-                accent="yellow"
+                accent="cyan"
               />
 
               <StatCard
@@ -214,7 +211,7 @@ export default function Home() {
                     ? "ACTIVE"
                     : "IDLE"
                 }
-                accent="yellow"
+                accent="cyan"
               />
 
               <StatCard
@@ -225,26 +222,13 @@ export default function Home() {
                     ? `${completedCount} measured`
                     : "NO DATA"
                 }
-                accent="teal"
+                accent="cyan"
               />
             </div>
 
-            {/* ARI VOICE */}
+            {/* SINGLE ARI INTERFACE */}
 
-            <AriVoiceConsole />
-
-            {/* MISSION CONTROL */}
-
-            <div className="mt-6">
-              <MissionControl />
-            </div>
-
-            {/* OPERATIONS */}
-
-            <div className="mt-6">
-              <OperationsPanel />
-            </div>
-
+            <AriCore />
           </div>
         </div>
       </section>

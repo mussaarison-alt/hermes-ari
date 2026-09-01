@@ -74,7 +74,7 @@ export default function MemoryPage() {
   }, []);
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
       <Sidebar />
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -95,7 +95,7 @@ export default function MemoryPage() {
                   ARI Memory
                 </h1>
 
-                <p className="mt-2 text-sm text-[#6f688f]">
+                <p className="mt-2 text-sm text-black/45">
                   Live view of Hermes persistent memory.
                 </p>
               </div>
@@ -103,7 +103,7 @@ export default function MemoryPage() {
               <button
                 onClick={loadMemory}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-[#0d0730] px-4 py-2.5 text-sm font-semibold text-[#a9a3c4] transition hover:border-[#00e5ff]/30 hover:text-white disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/70 px-4 py-2.5 text-sm font-semibold text-[#a9a3c4] transition hover:border-[#00e5ff]/30 hover:text-white disabled:opacity-50"
               >
                 <RefreshCw
                   size={15}
@@ -178,12 +178,12 @@ export default function MemoryPage() {
             {/* STATUS */}
 
             {error && (
-              <div className="mt-6 rounded-2xl border border-[#ff69b7]/20 bg-[#0d0730] p-5">
+              <div className="mt-6 rounded-2xl border border-[#ff69b7]/20 bg-white/70 p-5">
                 <p className="text-sm font-semibold text-[#ff69b7]">
                   Memory connection unavailable
                 </p>
 
-                <p className="mt-2 text-xs text-[#6f688f]">
+                <p className="mt-2 text-xs text-black/45">
                   {error}
                 </p>
               </div>
@@ -192,7 +192,7 @@ export default function MemoryPage() {
             {/* DIRECTORY */}
 
             {data && (
-              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/[0.1] bg-[#0d0730] px-5 py-4">
+              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/[0.1] bg-white/70 px-5 py-4">
 
                 <FolderOpen
                   size={17}
@@ -200,7 +200,7 @@ export default function MemoryPage() {
                 />
 
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
                     Hermes Memory Directory
                   </p>
 
@@ -217,7 +217,7 @@ export default function MemoryPage() {
             <div className="mt-6 space-y-4">
 
               {loading && (
-                <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-10 text-center">
+                <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-10 text-center">
 
                   <RefreshCw
                     size={24}
@@ -257,7 +257,7 @@ export default function MemoryPage() {
                 data &&
                 !data?.memory?.exists &&
                 !data?.user?.exists && (
-                  <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-10 text-center">
+                  <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-10 text-center">
 
                     <Brain
                       size={28}
@@ -268,7 +268,7 @@ export default function MemoryPage() {
                       No memory content found
                     </p>
 
-                    <p className="mt-2 text-xs text-[#6f688f]">
+                    <p className="mt-2 text-xs text-black/45">
                       Hermes memory is enabled, but no persistent memory file has been populated yet.
                     </p>
 
@@ -279,7 +279,7 @@ export default function MemoryPage() {
 
             {/* FOOTER */}
 
-            <div className="mt-5 rounded-2xl border border-[#00e5b0]/10 bg-[#0d0730] p-5">
+            <div className="mt-5 rounded-2xl border border-[#00e5b0]/10 bg-white/70 p-5">
 
               <div className="flex items-center gap-3">
 
@@ -315,7 +315,7 @@ function MemorySection({
 }) {
   return (
     <section
-      className="rounded-2xl border bg-[#0d0730] p-6"
+      className="rounded-2xl border bg-white/70 p-6"
       style={{
         borderColor: `${accent}26`,
       }}
@@ -323,7 +323,7 @@ function MemorySection({
       <div className="flex items-start gap-4">
 
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-[#07031f]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white"
           style={{
             borderColor: `${accent}33`,
           }}
@@ -377,11 +377,11 @@ function MemoryCard({
   color: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
       <div className="flex items-center justify-between">
 
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
           {label}
         </p>
 
@@ -396,7 +396,7 @@ function MemoryCard({
         {value}
       </p>
 
-      <p className="mt-2 text-[11px] text-[#6f688f]">
+      <p className="mt-2 text-[11px] text-black/45">
         {detail}
       </p>
 

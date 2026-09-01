@@ -293,7 +293,7 @@ export default function IntegrationsPage() {
       : 0;
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
 
       <Sidebar />
 
@@ -319,7 +319,7 @@ export default function IntegrationsPage() {
                   Integrations
                 </h1>
 
-                <p className="mt-2 text-sm text-[#6f688f]">
+                <p className="mt-2 text-sm text-black/45">
                   Live status of the services ARI can access.
                 </p>
 
@@ -405,13 +405,13 @@ export default function IntegrationsPage() {
             {/* ERROR */}
 
             {error && (
-              <div className="mt-6 rounded-2xl border border-[#ff69b7]/20 bg-[#0d0730] p-5">
+              <div className="mt-6 rounded-2xl border border-[#ff69b7]/20 bg-white/70 p-5">
 
                 <p className="text-sm font-semibold text-[#ff69b7]">
                   Integration inspection failed
                 </p>
 
-                <p className="mt-2 text-xs text-[#6f688f]">
+                <p className="mt-2 text-xs text-black/45">
                   {error}
                 </p>
 
@@ -421,7 +421,7 @@ export default function IntegrationsPage() {
 
             {/* FILTER */}
 
-            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/[0.1] bg-[#0d0730] p-4">
+            <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/[0.1] bg-white/70 p-4">
 
               <div className="flex items-center gap-2">
 
@@ -456,11 +456,11 @@ export default function IntegrationsPage() {
 
               </div>
 
-              <div className="flex h-9 w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-[#07031f] px-3">
+              <div className="flex h-9 w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-white px-3">
 
                 <Search
                   size={15}
-                  className="text-[#6f688f]"
+                  className="text-black/45"
                 />
 
                 <input
@@ -488,7 +488,7 @@ export default function IntegrationsPage() {
 
               {loading ? (
 
-                <div className="col-span-2 flex min-h-[300px] items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+                <div className="col-span-2 flex min-h-[300px] items-center justify-center rounded-2xl border border-white/[0.1] bg-white/70">
 
                   <div className="text-center">
 
@@ -497,7 +497,7 @@ export default function IntegrationsPage() {
                       className="mx-auto animate-pulse text-[#00e5b0]"
                     />
 
-                    <p className="mt-3 text-sm text-[#6f688f]">
+                    <p className="mt-3 text-sm text-black/45">
                       Inspecting local services...
                     </p>
 
@@ -508,7 +508,7 @@ export default function IntegrationsPage() {
               ) : filteredIntegrations.length ===
                 0 ? (
 
-                <div className="col-span-2 flex min-h-[300px] items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+                <div className="col-span-2 flex min-h-[300px] items-center justify-center rounded-2xl border border-white/[0.1] bg-white/70">
 
                   <div className="text-center">
 
@@ -521,7 +521,7 @@ export default function IntegrationsPage() {
                       No matching integrations
                     </p>
 
-                    <p className="mt-2 text-xs text-[#6f688f]">
+                    <p className="mt-2 text-xs text-black/45">
                       Try another filter or search term.
                     </p>
 
@@ -551,13 +551,13 @@ export default function IntegrationsPage() {
 
             {/* SECURITY */}
 
-            <div className="mt-5 rounded-2xl border border-[#00e5b0]/10 bg-[#0d0730] p-5">
+            <div className="mt-5 rounded-2xl border border-[#00e5b0]/10 bg-white/70 p-5">
 
               <div className="flex items-center justify-between">
 
                 <div className="flex items-center gap-4">
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#00e5b0]/20 bg-[#07031f]">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#00e5b0]/20 bg-white">
 
                     <ShieldCheck
                       size={20}
@@ -572,7 +572,7 @@ export default function IntegrationsPage() {
                       Integration security
                     </p>
 
-                    <p className="mt-1 text-xs text-[#6f688f]">
+                    <p className="mt-1 text-xs text-black/45">
                       Status is inspected server-side. Secrets and API keys are not sent to the browser.
                     </p>
 
@@ -665,14 +665,14 @@ function IntegrationItem({
 
   return (
     <div
-      className={`rounded-2xl border bg-[#0d0730] p-5 transition hover:bg-[#11083a] ${accent.border}`}
+      className={`rounded-2xl border bg-white/70 p-5 transition hover:bg-[#11083a] ${accent.border}`}
     >
 
       <div className="flex items-start justify-between">
 
         <div className="flex items-center gap-4">
 
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-[#07031f]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-white">
 
             <Icon
               size={21}
@@ -690,7 +690,7 @@ function IntegrationItem({
               {integration.name}
             </p>
 
-            <p className="mt-1 text-xs text-[#6f688f]">
+            <p className="mt-1 text-xs text-black/45">
               {integration.category}
             </p>
 
@@ -699,7 +699,7 @@ function IntegrationItem({
         </div>
 
         <button
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6f688f] transition hover:bg-white/[0.04] hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-black/45 transition hover:bg-white/[0.04] hover:text-white"
           aria-label={`More options for ${integration.name}`}
         >
           <MoreHorizontal
@@ -715,7 +715,7 @@ function IntegrationItem({
       </p>
 
 
-      <p className="mt-3 text-[11px] leading-5 text-[#6f688f]">
+      <p className="mt-3 text-[11px] leading-5 text-black/45">
         {integration.detail}
       </p>
 
@@ -756,7 +756,7 @@ function IntegrationItem({
               ? "border-white/[0.08] text-[#777099]"
               : available
               ? "border-[#fff000]/30 bg-[#fff000]/[0.05] text-[#fff000]"
-              : "border-white/[0.08] text-[#6f688f]"
+              : "border-white/[0.08] text-black/45"
           }`}
         >
           {connected
@@ -798,11 +798,11 @@ function IntegrationCard({
   }[accent];
 
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
       <div className="flex items-center justify-between">
 
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
           {label}
         </p>
 
@@ -819,7 +819,7 @@ function IntegrationCard({
         {value}
       </p>
 
-      <p className="mt-2 text-[11px] text-[#6f688f]">
+      <p className="mt-2 text-[11px] text-black/45">
         {detail}
       </p>
 

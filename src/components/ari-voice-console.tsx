@@ -940,7 +940,7 @@ export default function AriVoiceConsole() {
               : "READY";
 
   return (
-    <section className="mt-6 overflow-hidden rounded-2xl border border-[#fff000]/15 bg-[#0d0730]">
+    <section className="mt-6 overflow-hidden rounded-2xl border border-[#fff000]/15 bg-white/70">
 
       <div className="border-b border-white/[0.08] px-6 py-5">
 
@@ -955,7 +955,7 @@ export default function AriVoiceConsole() {
               Voice Console
             </h2>
 
-            <p className="mt-1 text-xs text-[#6f688f]">
+            <p className="mt-1 text-xs text-black/45">
               Speak naturally. ARI listens locally and begins speaking as soon as its response is ready.
             </p>
           </div>
@@ -1050,9 +1050,9 @@ export default function AriVoiceConsole() {
 
         <div className="min-w-0">
 
-          <div className="min-h-[190px] rounded-xl border border-white/[0.08] bg-[#07031f] p-5">
+          <div className="min-h-[190px] rounded-xl border border-white/[0.08] bg-white p-5">
 
-            <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#6f688f]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-black/45">
               You
             </p>
 

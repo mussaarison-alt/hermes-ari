@@ -62,7 +62,7 @@ export default function NewMission({ onCreate }: NewMissionProps) {
 
           {/* WINDOW */}
 
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-[#00e5ff]/20 bg-[#0d0730] shadow-[0_0_60px_rgba(0,229,255,0.08)]">
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-[#00e5ff]/20 bg-white/70 shadow-[0_0_60px_rgba(0,229,255,0.08)]">
 
             {/* HEADER */}
 
@@ -77,7 +77,7 @@ export default function NewMission({ onCreate }: NewMissionProps) {
                   New Mission
                 </h2>
 
-                <p className="mt-1 text-xs text-[#6f688f]">
+                <p className="mt-1 text-xs text-black/45">
                   Give ARI an objective to execute.
                 </p>
               </div>
@@ -105,7 +105,7 @@ export default function NewMission({ onCreate }: NewMissionProps) {
                 onChange={(event) => setMission(event.target.value)}
                 placeholder="Tell ARI what you want accomplished..."
                 rows={6}
-                className="mt-3 w-full resize-none rounded-xl border border-white/[0.1] bg-[#07031f] p-4 text-sm text-white outline-none placeholder:text-[#4f496d] transition focus:border-[#00e5ff]/40"
+                className="mt-3 w-full resize-none rounded-xl border border-white/[0.1] bg-white p-4 text-sm text-white outline-none placeholder:text-[#4f496d] transition focus:border-[#00e5ff]/40"
               />
 
 
@@ -142,7 +142,7 @@ export default function NewMission({ onCreate }: NewMissionProps) {
 
               <div className="mt-7 flex items-center justify-between border-t border-white/[0.08] pt-5">
 
-                <p className="text-xs text-[#6f688f]">
+                <p className="text-xs text-black/45">
                   {mission.length} characters
                 </p>
 

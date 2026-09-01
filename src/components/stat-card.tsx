@@ -18,7 +18,7 @@ export default function StatCard({
   }[accent];
 
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5 transition hover:border-white/[0.18]">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5 transition hover:border-white/[0.18]">
       <div className="flex items-start justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#777099]">
           {label}

@@ -107,7 +107,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
 
       <Sidebar />
 
@@ -132,7 +132,7 @@ export default function SettingsPage() {
                   Settings
                 </h1>
 
-                <p className="mt-2 text-sm text-[#6f688f]">
+                <p className="mt-2 text-sm text-black/45">
                   Configure ARI, Hermes, models, voice, and system behavior.
                 </p>
               </div>
@@ -151,13 +151,13 @@ export default function SettingsPage() {
 
             {/* SYSTEM STATUS */}
 
-            <div className="mt-7 rounded-2xl border border-[#00e5b0]/15 bg-[#0d0730] p-5">
+            <div className="mt-7 rounded-2xl border border-[#00e5b0]/15 bg-white/70 p-5">
 
               <div className="flex items-center justify-between">
 
                 <div className="flex items-center gap-4">
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#00e5b0]/20 bg-[#07031f]">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#00e5b0]/20 bg-white">
 
                     <ShieldCheck
                       size={20}
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                       Hermes system operational
                     </p>
 
-                    <p className="mt-1 text-xs text-[#6f688f]">
+                    <p className="mt-1 text-xs text-black/45">
                       ARI interface and local configuration are available.
                     </p>
                   </div>
@@ -199,7 +199,7 @@ export default function SettingsPage() {
 
               {/* SETTINGS NAV */}
 
-              <aside className="h-fit rounded-2xl border border-white/[0.1] bg-[#0d0730] p-3">
+              <aside className="h-fit rounded-2xl border border-white/[0.1] bg-white/70 p-3">
 
                 {sections.map((section, index) => {
                   const Icon = section.icon;
@@ -222,7 +222,7 @@ export default function SettingsPage() {
                           {section.title}
                         </p>
 
-                        <p className="mt-0.5 text-[9px] text-[#6f688f]">
+                        <p className="mt-0.5 text-[9px] text-black/45">
                           {section.description}
                         </p>
                       </div>
@@ -240,7 +240,7 @@ export default function SettingsPage() {
 
               {/* GENERAL SETTINGS */}
 
-              <section className="rounded-2xl border border-white/[0.1] bg-[#0d0730]">
+              <section className="rounded-2xl border border-white/[0.1] bg-white/70">
 
                 <div className="border-b border-white/[0.08] px-6 py-5">
 
@@ -252,7 +252,7 @@ export default function SettingsPage() {
                     ARI Preferences
                   </h2>
 
-                  <p className="mt-1 text-xs text-[#6f688f]">
+                  <p className="mt-1 text-xs text-black/45">
                     Basic behavior and interface settings for your agent.
                   </p>
 
@@ -269,7 +269,7 @@ export default function SettingsPage() {
                     <input
                       value={settings.assistantName}
                       onChange={(event) => update("assistantName", event.target.value)}
-                      className="w-40 rounded-lg border border-white/[0.08] bg-[#07031f] px-3 py-2 text-sm text-white outline-none focus:border-[#00e5ff]/30"
+                      className="w-40 rounded-lg border border-white/[0.08] bg-white px-3 py-2 text-sm text-white outline-none focus:border-[#00e5ff]/30"
                     />
                   </SettingRow>
 
@@ -284,7 +284,7 @@ export default function SettingsPage() {
                       onChange={(event) =>
                         update("language", event.target.value as SettingsData["language"])
                       }
-                      className="rounded-lg border border-white/[0.08] bg-[#07031f] px-3 py-2 text-sm text-white outline-none"
+                      className="rounded-lg border border-white/[0.08] bg-white px-3 py-2 text-sm text-white outline-none"
                     >
                       <option>English</option>
                       <option>Danish</option>
@@ -302,7 +302,7 @@ export default function SettingsPage() {
                       onChange={(event) =>
                         update("defaultModel", event.target.value as SettingsData["defaultModel"])
                       }
-                      className="rounded-lg border border-white/[0.08] bg-[#07031f] px-3 py-2 text-sm text-white outline-none"
+                      className="rounded-lg border border-white/[0.08] bg-white px-3 py-2 text-sm text-white outline-none"
                     >
                       <option>Qwen</option>
                       <option>DeepSeek</option>
@@ -374,7 +374,7 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between border-t border-white/[0.08] px-6 py-4">
 
-                  <p className="text-[10px] text-[#6f688f]">
+                  <p className="text-[10px] text-black/45">
                     Last saved: {savedAt || "not saved"}
                   </p>
 
@@ -395,7 +395,7 @@ export default function SettingsPage() {
 
             {/* ADVANCED */}
 
-            <div className="mt-6 rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+            <div className="mt-6 rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
               <div className="flex items-center justify-between">
 
@@ -408,7 +408,7 @@ export default function SettingsPage() {
                     Agent Configuration
                   </h2>
 
-                  <p className="mt-1 text-xs text-[#6f688f]">
+                  <p className="mt-1 text-xs text-black/45">
                     Advanced Hermes settings will be exposed here once the
                     backend is connected.
                   </p>
@@ -449,7 +449,7 @@ function SettingRow({
 
       <div className="flex min-w-0 items-center gap-4">
 
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-[#07031f]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white">
           <Icon
             size={17}
             className="text-[#777099]"
@@ -462,7 +462,7 @@ function SettingRow({
             {title}
           </p>
 
-          <p className="mt-1 text-xs text-[#6f688f]">
+          <p className="mt-1 text-xs text-black/45">
             {description}
           </p>
 
@@ -495,7 +495,7 @@ function Toggle({
       className={`relative h-6 w-11 rounded-full border transition ${
         enabled
           ? "border-[#00e5b0]/40 bg-[#00e5b0]/20"
-          : "border-white/[0.1] bg-[#07031f]"
+          : "border-white/[0.1] bg-white"
       }`}
     >
       <span

@@ -147,7 +147,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <section className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
       <div className="mb-5 flex items-center justify-between">
 
@@ -161,7 +161,7 @@ function Panel({
           </h2>
         </div>
 
-        <span className="text-xs text-[#6f688f]">
+        <span className="text-xs text-black/45">
           Live
         </span>
 
@@ -214,7 +214,7 @@ function TaskRow({
                     •
                   </span>
 
-                  <span className="text-[10px] text-[#6f688f]">
+                  <span className="text-[10px] text-black/45">
                     {mission.tools.length} tool
                     {mission.tools.length === 1 ? "" : "s"}
                   </span>
@@ -253,7 +253,7 @@ function StatusRow({
   textClass: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#07031f] px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white px-4 py-3">
 
       <div className="flex items-center gap-3">
 
@@ -292,7 +292,7 @@ function EmptyState() {
           No missions yet
         </p>
 
-        <p className="mt-1 text-xs text-[#6f688f]">
+        <p className="mt-1 text-xs text-black/45">
           Run a mission from ARI Mission Console.
         </p>
 

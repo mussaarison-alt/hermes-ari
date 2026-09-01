@@ -306,7 +306,7 @@ export default function AnalyticsPage() {
       : "No activity";
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#07031f] text-white">
+    <main className="flex h-screen overflow-hidden bg-white text-white">
 
       <Sidebar />
 
@@ -332,13 +332,13 @@ export default function AnalyticsPage() {
                   Analytics
                 </h1>
 
-                <p className="mt-2 text-sm text-[#6f688f]">
+                <p className="mt-2 text-sm text-black/45">
                   Live performance data from ARI missions.
                 </p>
 
               </div>
 
-              <div className="rounded-xl border border-white/[0.08] bg-[#0d0730] px-4 py-2.5 text-xs text-[#777099]">
+              <div className="rounded-xl border border-white/[0.08] bg-white/70 px-4 py-2.5 text-xs text-[#777099]">
                 Last 7 days
               </div>
 
@@ -441,7 +441,7 @@ export default function AnalyticsPage() {
 
               {/* ACTIVITY */}
 
-              <section className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-6">
+              <section className="rounded-2xl border border-white/[0.1] bg-white/70 p-6">
 
                 <div className="flex items-start justify-between">
 
@@ -455,7 +455,7 @@ export default function AnalyticsPage() {
                       Mission workload
                     </h2>
 
-                    <p className="mt-1 text-xs text-[#6f688f]">
+                    <p className="mt-1 text-xs text-black/45">
                       Real missions created each day.
                     </p>
 
@@ -515,7 +515,7 @@ export default function AnalyticsPage() {
 
                             </div>
 
-                            <span className="mt-3 text-[10px] text-[#6f688f]">
+                            <span className="mt-3 text-[10px] text-black/45">
                               {item.label}
                             </span>
 
@@ -533,7 +533,7 @@ export default function AnalyticsPage() {
 
               {/* MISSION STATUS */}
 
-              <section className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-6">
+              <section className="rounded-2xl border border-white/[0.1] bg-white/70 p-6">
 
                 <div className="flex items-start justify-between">
 
@@ -604,7 +604,7 @@ export default function AnalyticsPage() {
                 </div>
 
 
-                <div className="mt-7 rounded-xl border border-[#00e5b0]/10 bg-[#07031f] p-4">
+                <div className="mt-7 rounded-xl border border-[#00e5b0]/10 bg-white p-4">
 
                   <div className="flex items-center gap-2">
 
@@ -619,7 +619,7 @@ export default function AnalyticsPage() {
 
                   </div>
 
-                  <p className="mt-2 text-[10px] text-[#6f688f]">
+                  <p className="mt-2 text-[10px] text-black/45">
                     {latestMission
                       ? `Latest mission ${latestMissionTime}.`
                       : "Mission activity will appear here."}
@@ -638,7 +638,7 @@ export default function AnalyticsPage() {
 
               {/* TOOL USAGE */}
 
-              <section className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-6">
+              <section className="rounded-2xl border border-white/[0.1] bg-white/70 p-6">
 
                 <div className="flex items-start justify-between">
 
@@ -652,7 +652,7 @@ export default function AnalyticsPage() {
                       Tool Usage
                     </h2>
 
-                    <p className="mt-1 text-xs text-[#6f688f]">
+                    <p className="mt-1 text-xs text-black/45">
                       Tools recorded by completed mission history.
                     </p>
 
@@ -695,7 +695,7 @@ export default function AnalyticsPage() {
                                 {tool.name}
                               </p>
 
-                              <p className="mt-1 text-[10px] text-[#6f688f]">
+                              <p className="mt-1 text-[10px] text-black/45">
                                 {tool.count} calls
                               </p>
 
@@ -709,7 +709,7 @@ export default function AnalyticsPage() {
 
                           </div>
 
-                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#07031f]">
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
 
                             <div
                               className="h-full rounded-full bg-[#ff69b7]"
@@ -733,7 +733,7 @@ export default function AnalyticsPage() {
 
               {/* RECENT */}
 
-              <section className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-6">
+              <section className="rounded-2xl border border-white/[0.1] bg-white/70 p-6">
 
                 <div className="flex items-start justify-between">
 
@@ -806,7 +806,7 @@ export default function AnalyticsPage() {
                                   "Untitled mission"}
                               </p>
 
-                              <p className="mt-1 truncate text-[10px] capitalize text-[#6f688f]">
+                              <p className="mt-1 truncate text-[10px] capitalize text-black/45">
                                 {mission.status}
                                 {" · "}
                                 {formatRelativeTime(
@@ -944,11 +944,11 @@ function AnalyticsCard({
   }[accent];
 
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
       <div className="flex items-center justify-between">
 
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
           {label}
         </p>
 
@@ -1041,7 +1041,7 @@ function StatusRow({
 
       </div>
 
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#07031f]">
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
 
         <div
           className="h-full rounded-full"
@@ -1082,7 +1082,7 @@ function EmptyState({
           {title}
         </p>
 
-        <p className="mt-2 text-xs text-[#6f688f]">
+        <p className="mt-2 text-xs text-black/45">
           {detail}
         </p>
 
@@ -1107,11 +1107,11 @@ function MiniMetric({
   accent: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-[#0d0730] p-5">
+    <div className="rounded-2xl border border-white/[0.1] bg-white/70 p-5">
 
       <div className="flex items-center gap-3">
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#07031f]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white">
 
           <Icon
             size={17}
@@ -1124,7 +1124,7 @@ function MiniMetric({
 
         <div>
 
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#6f688f]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
             {label}
           </p>
 
@@ -1136,7 +1136,7 @@ function MiniMetric({
 
       </div>
 
-      <p className="mt-3 text-[10px] text-[#6f688f]">
+      <p className="mt-3 text-[10px] text-black/45">
         {detail}
       </p>
 
