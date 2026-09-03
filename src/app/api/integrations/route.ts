@@ -143,14 +143,86 @@ async function detectGateway(
   };
 }
 
+/**
+ * Detect a real Himalaya mailbox configuration.
+ *
+ * Himalaya stores the account in its own TOML configuration,
+ * not in the Next.js application's .env file.
+ *
+ * We use the CLI because it is already installed and verified
+ * to successfully access the Gmail mailbox.
+ */
+async function detectHimalayaEmail() {
+  try {
+    const result = await execFileAsync(
+      process.platform === "win32"
+        ? "himalaya.exe"
+        : "himalaya",
+      ["account", "list", "--json"],
+      {
+        timeout: 5000,
+        windowsHide: true,
+      },
+    );
+
+    const raw = result.stdout.trim();
+
+    if (!raw) {
+      return {
+        configured: false,
+        detail: "Himalaya returned no configured accounts.",
+      };
+    }
+
+    const parsed = JSON.parse(raw) as {
+      accounts?: Array<{
+        name?: string;
+        backends?: string[];
+      }>;
+    };
+
+    if (
+      !Array.isArray(parsed.accounts) ||
+      parsed.accounts.length === 0
+    ) {
+      return {
+        configured: false,
+        detail: "No Himalaya email accounts are configured.",
+      };
+    }
+
+    const accountNames = parsed.accounts
+      .map((account) => account.name)
+      .filter(Boolean);
+
+    return {
+      configured: true,
+      detail:
+        accountNames.length > 0
+          ? `Himalaya account connected: ${accountNames.join(", ")}.`
+          : "Himalaya email account detected.",
+    };
+  } catch (error) {
+    console.error(
+      "Himalaya email detection failed:",
+      error,
+    );
+
+    return {
+      configured: false,
+      detail:
+        "Himalaya is not available to the Hermes UI process.",
+    };
+  }
+}
+
 export async function GET() {
   try {
     const hermesHome =
       process.env.HERMES_HOME || "";
 
     const apiPort = Number(
-      process.env.API_SERVER_PORT ||
-        8642,
+      process.env.API_SERVER_PORT || 8642,
     );
 
     const hermesVersion =
@@ -194,12 +266,8 @@ export async function GET() {
         hermesHome,
       );
 
-    const emailConfigured =
-      Boolean(
-        process.env.GMAIL_CLIENT_ID ||
-          process.env.EMAIL_API_KEY ||
-          process.env.IMAP_HOST,
-      );
+    const email =
+      await detectHimalayaEmail();
 
     const discordConfigured =
       Boolean(
@@ -295,14 +363,12 @@ export async function GET() {
         id: "email",
         name: "Email",
         description:
-          "Email connectivity for messaging and automation.",
+          "Gmail mailbox connected through Himalaya.",
         category: "Communication",
-        status: emailConfigured
-          ? "Available"
+        status: email.configured
+          ? "Connected"
           : "Not Connected",
-        detail: emailConfigured
-          ? "Email configuration detected."
-          : "No email provider configuration detected.",
+        detail: email.detail,
       },
 
       {

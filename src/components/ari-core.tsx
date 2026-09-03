@@ -1,499 +1,807 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  Loader2,
+  Mic,
+  Send,
+  Square,
+  Volume2,
+} from "lucide-react";
 
-type AriCoreProps = {
-  status?:
-    | "ready"
-    | "recording"
-    | "transcribing"
-    | "thinking"
-    | "speaking"
-    | "error";
+type VoiceStatus =
+  | "ready"
+  | "recording"
+  | "transcribing"
+  | "thinking"
+  | "speaking"
+  | "error";
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
 };
 
-export default function AriCore({
-  status = "ready",
-}: AriCoreProps) {
-  const [pulse, setPulse] = useState(0);
+const HISTORY_KEY = "hermes-ari-voice-history";
+const MAX_HISTORY = 20;
+
+export default function AriCore() {
+  const [status, setStatus] = useState<VoiceStatus>("ready");
+  const [input, setInput] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [response, setResponse] = useState("");
+  const [history, setHistory] = useState<Message[]>([]);
+  const [error, setError] = useState("");
+
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const responseRef = useRef("");
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setPulse((value) => value + 1);
-    }, 1600);
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
 
-    return () => window.clearInterval(interval);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+
+      if (!Array.isArray(parsed)) return;
+
+      const safe = parsed.filter(
+        (message): message is Message =>
+          message &&
+          (message.role === "user" ||
+            message.role === "assistant") &&
+          typeof message.content === "string",
+      );
+
+      setHistory(safe.slice(-MAX_HISTORY));
+    } catch {
+      setHistory([]);
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify(history.slice(-MAX_HISTORY)),
+      );
+    } catch {
+      // Best effort.
+    }
+  }, [history]);
+
+  useEffect(() => {
+    return () => {
+      if (
+        recorderRef.current &&
+        recorderRef.current.state !== "inactive"
+      ) {
+        recorderRef.current.stop();
+      }
+
+      streamRef.current
+        ?.getTracks()
+        .forEach((track) => track.stop());
+
+      audioRef.current?.pause();
+    };
+  }, []);
+
+  const busy =
+    status === "recording" ||
+    status === "transcribing" ||
+    status === "thinking" ||
+    status === "speaking";
+
+  const statusLabel =
+    status === "recording"
+      ? "LISTENING"
+      : status === "transcribing"
+        ? "TRANSCRIBING"
+        : status === "thinking"
+          ? "THINKING"
+          : status === "speaking"
+            ? "SPEAKING"
+            : status === "error"
+              ? "SIGNAL ERROR"
+              : "READY TO ASSIST";
 
   const active =
     status === "recording" ||
     status === "thinking" ||
     status === "speaking";
 
-  const speaking = status === "speaking";
-  const thinking = status === "thinking";
-  const recording = status === "recording";
-  const error = status === "error";
+  async function submitText(event?: FormEvent) {
+    event?.preventDefault();
 
-  const statusLabel =
-    status === "recording"
-      ? "LISTENING..."
-      : status === "thinking"
-        ? "PROCESSING..."
-        : status === "speaking"
-          ? "SPEAKING..."
-          : status === "error"
-            ? "SIGNAL ERROR"
-            : "READY TO ASSIST";
+    const text = input.trim();
+
+    if (!text || busy) return;
+
+    setInput("");
+    setTranscript(text);
+    await askAri(text);
+  }
+
+  async function startRecording() {
+    if (busy) return;
+
+    setError("");
+    setTranscript("");
+    setResponse("");
+
+    try {
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
+      streamRef.current = stream;
+
+      const mimeType = getSupportedMimeType();
+
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        stream
+          .getTracks()
+          .forEach((track) => track.stop());
+
+        streamRef.current = null;
+        recorderRef.current = null;
+
+        void transcribeRecording(recorder);
+      };
+
+      recorderRef.current = recorder;
+
+      recorder.start();
+
+      setStatus("recording");
+    } catch (err) {
+      console.error("Microphone error:", err);
+
+      setStatus("error");
+
+      setError(
+        err instanceof DOMException &&
+          err.name === "NotAllowedError"
+          ? "Microphone permission was denied."
+          : "Unable to access the microphone.",
+      );
+    }
+  }
+
+  function stopRecording() {
+    const recorder = recorderRef.current;
+
+    if (
+      recorder &&
+      recorder.state !== "inactive"
+    ) {
+      recorder.stop();
+    }
+  }
+
+  async function transcribeRecording(
+    recorder: MediaRecorder,
+  ) {
+    setStatus("transcribing");
+
+    try {
+      const mimeType =
+        recorder.mimeType || "audio/webm";
+
+      const blob = new Blob(chunksRef.current, {
+        type: mimeType,
+      });
+
+      if (blob.size === 0) {
+        throw new Error("The recording was empty.");
+      }
+
+      const extension =
+        mimeType.includes("mp4") ||
+        mimeType.includes("m4a")
+          ? ".m4a"
+          : mimeType.includes("ogg")
+            ? ".ogg"
+            : ".webm";
+
+      const formData = new FormData();
+
+      formData.append(
+        "audio",
+        new File(
+          [blob],
+          `voice${extension}`,
+          {
+            type: mimeType,
+          },
+        ),
+      );
+
+      const transcriptionResponse =
+        await fetch(
+          "/api/audio/transcribe",
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+      const result =
+        (await transcriptionResponse.json()) as {
+          success?: boolean;
+          transcript?: string;
+          error?: string;
+        };
+
+      if (
+        !transcriptionResponse.ok ||
+        !result.success
+      ) {
+        throw new Error(
+          result.error ||
+            "Transcription failed.",
+        );
+      }
+
+      const text =
+        result.transcript?.trim();
+
+      if (!text) {
+        throw new Error(
+          "No speech was detected.",
+        );
+      }
+
+      setTranscript(text);
+
+      await askAri(text);
+    } catch (err) {
+      console.error(
+        "Transcription error:",
+        err,
+      );
+
+      setStatus("error");
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to transcribe audio.",
+      );
+    }
+  }
+
+  async function askAri(text: string) {
+    setStatus("thinking");
+    setError("");
+    setResponse("");
+
+    const conversation = [
+      ...history,
+      {
+        role: "user" as const,
+        content: text,
+      },
+    ].slice(-MAX_HISTORY);
+
+    setHistory(conversation);
+
+    responseRef.current = "";
+
+    try {
+      const ariResponse = await fetch(
+        "/api/ari",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            messages: conversation,
+            voice: true,
+          }),
+        },
+      );
+
+      if (!ariResponse.ok) {
+        throw new Error(
+          (await ariResponse.text()) ||
+            `ARI returned HTTP ${ariResponse.status}.`,
+        );
+      }
+
+      if (!ariResponse.body) {
+        throw new Error(
+          "ARI returned no response body.",
+        );
+      }
+
+      const reader =
+        ariResponse.body.getReader();
+
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+
+      while (true) {
+        const { done, value } =
+          await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(
+          value,
+          { stream: true },
+        );
+
+        const lines =
+          buffer.split(/\r?\n/);
+
+        buffer =
+          lines.pop() ?? "";
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+
+          if (!line.startsWith("data:")) {
+            continue;
+          }
+
+          const payload =
+            line.slice(5).trim();
+
+          if (
+            !payload ||
+            payload === "[DONE]"
+          ) {
+            continue;
+          }
+
+          try {
+            const event =
+              JSON.parse(payload) as {
+                choices?: Array<{
+                  delta?: {
+                    content?: string;
+                  };
+                }>;
+              };
+
+            const chunk =
+              event.choices?.[0]?.delta
+                ?.content;
+
+            if (
+              typeof chunk !==
+              "string"
+            ) {
+              continue;
+            }
+
+            responseRef.current += chunk;
+
+            setResponse(
+              responseRef.current,
+            );
+          } catch {
+            // Ignore malformed SSE chunks.
+          }
+        }
+      }
+
+      const finalResponse =
+        responseRef.current.trim();
+
+      if (!finalResponse) {
+        throw new Error(
+          "ARI returned an empty response.",
+        );
+      }
+
+      setHistory((current) =>
+        [
+          ...current,
+          {
+            role: "assistant",
+            content: finalResponse,
+          },
+        ].slice(-MAX_HISTORY),
+      );
+
+      setStatus("speaking");
+
+      await speak(finalResponse);
+
+      setStatus("ready");
+    } catch (err) {
+      console.error(
+        "ARI request failed:",
+        err,
+      );
+
+      setStatus("error");
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "ARI could not process the request.",
+      );
+    }
+  }
+
+  async function speak(text: string) {
+    try {
+      const response = await fetch(
+        "/api/tts",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            text,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          (await response.text()) ||
+            `TTS returned HTTP ${response.status}.`,
+        );
+      }
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error(
+          "TTS returned empty audio.",
+        );
+      }
+
+      const url =
+        URL.createObjectURL(blob);
+
+      const audio = new Audio(url);
+
+      audioRef.current = audio;
+
+      await new Promise<void>(
+        (resolve, reject) => {
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            audioRef.current = null;
+            resolve();
+          };
+
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            audioRef.current = null;
+            reject(
+              new Error(
+                "The browser could not play ARI audio.",
+              ),
+            );
+          };
+
+          void audio.play().catch(reject);
+        },
+      );
+    } catch (err) {
+      console.error("TTS error:", err);
+
+      // Voice output is secondary to the text response.
+      // Do not turn a successful ARI response
+      // into a failed conversation just because TTS
+      // is unavailable.
+    }
+  }
 
   return (
-    <section className="relative mt-6 h-[520px] w-full overflow-hidden rounded-[28px] border border-white/70 bg-[#f4f5f3] shadow-[0_25px_80px_rgba(30,70,50,0.10)]">
-      {/* HEADER */}
+    <section className="relative mt-6 min-h-[610px] overflow-hidden rounded-[30px] border border-sky-100 bg-[radial-gradient(circle_at_50%_42%,#ffffff_0%,#f4f9fc_35%,#eaf3f8_68%,#e2edf4_100%)] shadow-[0_30px_100px_rgba(63,145,190,0.16)]">
 
-      <div className="absolute left-6 top-5 z-20">
-        <div className="text-[10px] font-medium uppercase tracking-[0.35em] text-black/45">
+      {/* atmospheric glow */}
+      <div
+        className={`pointer-events-none absolute left-1/2 top-[45%] h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-1000 ${
+          active
+            ? "scale-110 opacity-90"
+            : "scale-100 opacity-75"
+        }`}
+        style={{
+          background:
+            "radial-gradient(circle, rgba(185,235,255,0.95) 0%, rgba(210,243,255,0.65) 28%, rgba(220,246,255,0.28) 52%, transparent 73%)",
+          filter: "blur(10px)",
+        }}
+      />
+
+      {/* header */}
+      <div className="absolute left-7 top-6 z-20">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.38em] text-slate-500">
           ARI
-        </div>
+        </p>
 
-        <div className="mt-1 text-[11px] uppercase tracking-[0.24em] text-black/35">
+        <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
           Advanced Reasoning Intelligence
-        </div>
+        </p>
       </div>
 
-      <div className="absolute right-6 top-5 z-20 flex items-center gap-2 rounded-full border border-white/80 bg-white/65 px-4 py-2 backdrop-blur-md">
-        <span className="h-2 w-2 rounded-full bg-[#58e39b] shadow-[0_0_10px_rgba(88,227,155,0.8)]" />
+      <div className="absolute right-7 top-6 z-20 flex items-center gap-2 rounded-full border border-white/90 bg-white/65 px-4 py-2 shadow-[0_8px_25px_rgba(65,120,150,0.08)] backdrop-blur-xl">
+        <span
+          className={`h-2 w-2 rounded-full ${
+            status === "error"
+              ? "bg-rose-400"
+              : status === "recording"
+                ? "bg-sky-500 shadow-[0_0_12px_rgba(14,165,233,0.75)]"
+                : "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.75)]"
+          }`}
+        />
 
-        <span className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/45">
-          Online
+        <span className="text-[9px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+          {statusLabel}
         </span>
       </div>
 
-      {/* LEFT CONTEXT PANEL */}
+      {/* central ARI orb */}
+      <div className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2">
 
-      <div className="absolute left-5 top-[84px] z-20 w-[155px] rounded-[20px] border border-white/90 bg-white/65 p-5 shadow-[0_15px_40px_rgba(40,80,60,0.08)] backdrop-blur-xl">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/55">
-            Context
-          </span>
+        <div
+          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-200/70 transition-all duration-700 ${
+            active
+              ? "h-[390px] w-[390px] opacity-100"
+              : "h-[350px] w-[350px] opacity-80"
+          }`}
+        />
 
-          <span className="text-black/40">•••</span>
+        <div
+          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-100 transition-all duration-700 ${
+            active
+              ? "h-[320px] w-[320px]"
+              : "h-[290px] w-[290px]"
+          }`}
+        />
+
+        <div className="relative flex h-[240px] w-[240px] items-center justify-center">
+
+          <div
+            className={`absolute inset-0 rounded-full bg-white/75 shadow-[inset_0_0_45px_rgba(255,255,255,1),0_25px_70px_rgba(72,165,205,0.18)] backdrop-blur-sm transition-transform duration-700 ${
+              active ? "scale-110" : "scale-100"
+            }`}
+          />
+
+          <div className="absolute inset-[14px] rounded-full border border-white bg-[radial-gradient(circle_at_38%_30%,#ffffff_0%,#ecfaff_28%,#c7edf9_58%,#8fc9dc_82%,#72aec2_100%)] shadow-[inset_0_0_38px_rgba(255,255,255,0.95),inset_0_-18px_35px_rgba(47,111,138,0.16),0_15px_50px_rgba(71,167,207,0.18)]" />
+
+          {/* orbital rings */}
+          <div
+            className={`absolute inset-[26px] rounded-full border-2 border-white/75 ${
+              active
+                ? "animate-[spin_5s_linear_infinite]"
+                : "animate-[spin_18s_linear_infinite]"
+            }`}
+          />
+
+          <div
+            className={`absolute inset-[42px] rounded-full border border-sky-300/55 ${
+              active
+                ? "animate-[spin_4s_linear_infinite_reverse]"
+                : "animate-[spin_15s_linear_infinite_reverse]"
+            }`}
+          />
+
+          <div className="absolute h-[88px] w-[88px] rounded-full bg-white/90 shadow-[0_0_55px_rgba(255,255,255,1),0_0_90px_rgba(120,211,245,0.75)]" />
+
+          <div className="absolute left-[68px] top-[54px] h-[30px] w-[52px] rotate-[-25deg] rounded-full bg-white/70 blur-[6px]" />
+
+          <div className="absolute inset-[70px] rounded-full border border-sky-100/80" />
+        </div>
+      </div>
+
+      {/* status */}
+      <div className="absolute left-1/2 top-[330px] z-10 -translate-x-1/2 text-center">
+
+        <div className="text-[10px] font-semibold uppercase tracking-[0.5em] text-sky-600">
+          ARI
         </div>
 
-        <div className="mt-7 space-y-5">
+        <div className="mt-2 text-[9px] uppercase tracking-[0.34em] text-slate-400">
+          {statusLabel}
+        </div>
+
+        <div className="mt-4 flex h-5 items-center justify-center gap-[3px]">
+          {Array.from({ length: 31 }).map(
+            (_, index) => (
+              <span
+                key={index}
+                className={`w-[2px] rounded-full bg-sky-400/60 transition-all duration-300 ${
+                  active
+                    ? "h-5"
+                    : index % 4 === 0
+                      ? "h-3"
+                      : "h-1.5"
+                }`}
+              />
+            ),
+          )}
+        </div>
+      </div>
+
+      {/* context panel */}
+      <div className="absolute left-6 top-[105px] z-10 w-[170px] rounded-[22px] border border-white/85 bg-white/65 p-5 shadow-[0_15px_40px_rgba(70,130,160,0.08)] backdrop-blur-xl">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+          SYSTEM
+        </div>
+
+        <div className="mt-5 space-y-4">
           <div>
-            <div className="text-[8px] uppercase tracking-[0.2em] text-black/30">
-              Current Task
+            <div className="text-[8px] uppercase tracking-[0.2em] text-slate-400">
+              Runtime
             </div>
 
-            <div className="mt-1 text-[11px] text-[#4b9b72]">
-              Project Hermes
+            <div className="mt-1 text-[11px] text-sky-600">
+              Hermes
             </div>
           </div>
 
           <div>
-            <div className="text-[8px] uppercase tracking-[0.2em] text-black/30">
-              Mode
-            </div>
-
-            <div className="mt-1 text-[11px] text-[#4b9b72]">
-              Reasoning
-            </div>
-          </div>
-
-          <div>
-            <div className="text-[8px] uppercase tracking-[0.2em] text-black/30">
+            <div className="text-[8px] uppercase tracking-[0.2em] text-slate-400">
               Memory
             </div>
 
-            <div className="mt-1 text-[11px] text-[#4b9b72]">
+            <div className="mt-1 text-[11px] text-emerald-500">
               Active
             </div>
           </div>
 
           <div>
-            <div className="text-[8px] uppercase tracking-[0.2em] text-black/30">
-              Knowledge Base
+            <div className="text-[8px] uppercase tracking-[0.2em] text-slate-400">
+              Interface
             </div>
 
-            <div className="mt-1 text-[11px] text-[#4b9b72]">
-              Connected
+            <div className="mt-1 text-[11px] text-sky-600">
+              Voice + Text
             </div>
           </div>
         </div>
       </div>
 
-      {/* RIGHT OUTPUT PANEL */}
-
-      <div className="absolute right-5 top-[84px] z-20 w-[170px] rounded-[20px] border border-white/90 bg-white/65 p-5 shadow-[0_15px_40px_rgba(40,80,60,0.08)] backdrop-blur-xl">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/55">
-            Output
+      {/* response panel */}
+      <div className="absolute right-6 top-[105px] z-10 w-[230px] rounded-[22px] border border-white/85 bg-white/65 p-5 shadow-[0_15px_40px_rgba(70,130,160,0.08)] backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+            ARI OUTPUT
           </span>
 
-          <span className="text-black/40">•••</span>
+          {response && (
+            <Volume2
+              size={12}
+              className="text-sky-500"
+            />
+          )}
         </div>
 
-        <div className="mt-6">
-          <div className="text-[11px] font-semibold text-[#4b9b72]">
-            Analysis Complete
-          </div>
-
-          <div className="mt-3 text-[9px] leading-5 text-black/45">
-            ARI is ready to process the next operation.
-          </div>
-
-          <div className="mt-4 space-y-2 text-[9px] text-black/50">
-            <div className="flex items-center gap-2">
-              <span className="text-[#4b9b72]">✓</span>
-              Data processed
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[#4b9b72]">✓</span>
-              Patterns identified
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[#4b9b72]">✓</span>
-              Context applied
-            </div>
-          </div>
+        <div className="mt-4 max-h-[150px] overflow-y-auto text-[11px] leading-5 text-slate-600">
+          {response ||
+            transcript ||
+            "Awaiting your instruction..."}
         </div>
       </div>
 
-      {/* CENTRAL ATMOSPHERIC FIELD */}
-
-      <div className="absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2">
-        <div
-          className={`absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-1000 ${
-            active ? "scale-110 opacity-70" : "scale-100 opacity-45"
-          }`}
-          style={{
-            background:
-              "radial-gradient(circle, rgba(220,225,225,0.75) 0%, rgba(240,242,240,0.35) 38%, transparent 72%)",
-          }}
+      {/* bottom input */}
+      <form
+        onSubmit={submitText}
+        className="absolute bottom-6 left-1/2 z-20 flex w-[62%] -translate-x-1/2 items-center gap-3 rounded-[20px] border border-white bg-white/75 px-4 py-3 shadow-[0_12px_35px_rgba(60,125,155,0.12)] backdrop-blur-xl"
+      >
+        <input
+          value={input}
+          onChange={(event) =>
+            setInput(event.target.value)
+          }
+          disabled={busy}
+          placeholder="Ask ARI anything..."
+          className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 disabled:opacity-60"
         />
 
-        {/* OUTER RINGS */}
-
-        <div
-          className={`absolute left-1/2 top-1/2 h-[390px] w-[390px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/[0.07] ${
-            thinking
-              ? "animate-[spin_7s_linear_infinite]"
-              : "animate-[spin_28s_linear_infinite]"
-          }`}
-        />
-
-        <div
-          className={`absolute left-1/2 top-1/2 h-[330px] w-[330px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/[0.09] ${
-            recording
-              ? "animate-[spin_6s_linear_infinite_reverse]"
-              : "animate-[spin_22s_linear_infinite_reverse]"
-          }`}
-        />
-
-        <div
-          className={`absolute left-1/2 top-1/2 h-[285px] w-[285px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/[0.13] ${
-            speaking
-              ? "animate-[spin_5s_linear_infinite]"
-              : "animate-[spin_32s_linear_infinite]"
-          }`}
-        />
-
-        {/* RING HIGHLIGHTS */}
-
-        <div className="absolute left-1/2 top-1/2 h-[285px] w-[285px] -translate-x-1/2 -translate-y-1/2">
-          <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-white shadow-[0_0_12px_rgba(0,0,0,0.25)]" />
-
-          <span className="absolute bottom-8 right-5 h-1.5 w-1.5 rounded-full bg-black/40" />
-        </div>
-
-        {/* CENTRAL SERAPHIM MARK */}
-
-        <div
-          className={`relative flex h-[190px] w-[190px] items-center justify-center transition-all duration-700 ${
-            error
-              ? "scale-95"
-              : speaking
-                ? "scale-110"
-                : recording
-                  ? "scale-105"
-                  : "scale-100"
-          }`}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={
+            status === "recording"
+              ? stopRecording
+              : startRecording
+          }
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+            status === "recording"
+              ? "border-sky-400 bg-sky-50 text-sky-600 shadow-[0_0_25px_rgba(56,189,248,0.25)]"
+              : "border-slate-200 bg-white text-slate-500 hover:border-sky-300 hover:text-sky-500"
+          } disabled:cursor-not-allowed disabled:opacity-50`}
+          aria-label={
+            status === "recording"
+              ? "Stop recording"
+              : "Start recording"
+          }
         >
-          {/* Metallic circular frame */}
+          {status === "recording" ? (
+            <Square
+              size={15}
+              fill="currentColor"
+            />
+          ) : busy ? (
+            <Loader2
+              size={15}
+              className="animate-spin"
+            />
+          ) : (
+            <Mic size={17} />
+          )}
+        </button>
 
-          <div className="absolute inset-0 rounded-full border border-black/[0.14] bg-gradient-to-br from-white via-[#e5e7e5] to-[#c7cbca] shadow-[inset_0_0_35px_rgba(255,255,255,0.95),0_20px_55px_rgba(0,0,0,0.12)]" />
+        <button
+          type="submit"
+          disabled={
+            busy ||
+            input.trim().length === 0
+          }
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-[0_5px_18px_rgba(14,165,233,0.28)] transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Send message to ARI"
+        >
+          <Send size={15} />
+        </button>
+      </form>
 
-          {/* Glass interior */}
-
-          <div className="absolute inset-[14px] rounded-full border border-white/90 bg-gradient-to-br from-white via-[#eef0ee] to-[#d2d6d4] shadow-[inset_0_0_30px_rgba(255,255,255,0.95),inset_0_-15px_28px_rgba(0,0,0,0.10)]" />
-
-          {/* SERAPHIM / NUCLEUS MARK */}
-
-          <div
-            className={`relative z-10 transition-all duration-700 ${
-              active ? "scale-110" : pulse % 2 === 0 ? "scale-100" : "scale-[1.02]"
-            }`}
-          >
-            <svg
-              width="170"
-              height="170"
-              viewBox="0 0 170 170"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="overflow-visible drop-shadow-[0_14px_28px_rgba(35,85,110,0.20)]"
-              aria-label="ARI Seraphim nucleus"
-              role="img"
-            >
-              <defs>
-                <radialGradient id="ariOrb" cx="58" cy="48" r="70" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#ffffff" />
-                  <stop offset="0.22" stopColor="#f4fbff" />
-                  <stop offset="0.48" stopColor="#d2edf5" />
-                  <stop offset="0.72" stopColor="#91b9c5" />
-                  <stop offset="0.9" stopColor="#62767e" />
-                  <stop offset="1" stopColor="#48565c" />
-                </radialGradient>
-
-                <radialGradient id="ariOrbGlow" cx="0" cy="0" r="1">
-                  <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
-                  <stop offset="0.34" stopColor="#dff8ff" stopOpacity="0.92" />
-                  <stop offset="0.68" stopColor="#8eddf7" stopOpacity="0.42" />
-                  <stop offset="1" stopColor="#62c8eb" stopOpacity="0" />
-                </radialGradient>
-
-                <linearGradient id="ariChrome" x1="18" y1="18" x2="152" y2="152" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#ffffff" />
-                  <stop offset="0.16" stopColor="#dce3e5" />
-                  <stop offset="0.34" stopColor="#7d8b90" />
-                  <stop offset="0.5" stopColor="#ffffff" />
-                  <stop offset="0.66" stopColor="#9aa7ab" />
-                  <stop offset="0.84" stopColor="#edf2f4" />
-                  <stop offset="1" stopColor="#68767b" />
-                </linearGradient>
-
-                <linearGradient id="ariChromeDark" x1="20" y1="20" x2="150" y2="150" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#8c9a9f" />
-                  <stop offset="0.5" stopColor="#4c5a60" />
-                  <stop offset="1" stopColor="#b7c1c4" />
-                </linearGradient>
-
-                <filter id="ariGlow" x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur stdDeviation="9" />
-                </filter>
-
-                <filter id="ariSoftGlow" x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur stdDeviation="3.5" />
-                </filter>
-              </defs>
-
-              {/* Luminous field */}
-              <circle cx="85" cy="85" r="48" fill="url(#ariOrbGlow)" filter="url(#ariGlow)" opacity={active ? "0.9" : "0.68"} />
-
-              {/* Back orbital planes */}
-              <g className={speaking ? "ari-orbit-fast" : thinking ? "ari-orbit-medium-reverse" : "ari-orbit-slow-reverse"}>
-                <ellipse
-                  cx="85"
-                  cy="85"
-                  rx="67"
-                  ry="24"
-                  transform="rotate(-28 85 85)"
-                  stroke="url(#ariChromeDark)"
-                  strokeWidth="2.8"
-                  opacity="0.82"
-                />
-                <ellipse
-                  cx="85"
-                  cy="85"
-                  rx="67"
-                  ry="24"
-                  transform="rotate(-28 85 85)"
-                  stroke="url(#ariChrome)"
-                  strokeWidth="1"
-                  opacity="0.96"
-                />
-                <ellipse
-                  cx="30"
-                  cy="56"
-                  rx="2.4"
-                  ry="1.7"
-                  transform="rotate(-28 30 56)"
-                  fill="#ffffff"
-                  opacity="0.9"
-                />
-              </g>
-
-              <g className={speaking ? "ari-orbit-fast-reverse" : thinking ? "ari-orbit-medium" : "ari-orbit-slow"}>
-                <ellipse
-                  cx="85"
-                  cy="85"
-                  rx="71"
-                  ry="28"
-                  transform="rotate(22 85 85)"
-                  stroke="url(#ariChromeDark)"
-                  strokeWidth="3"
-                  opacity="0.84"
-                />
-                <ellipse
-                  cx="85"
-                  cy="85"
-                  rx="71"
-                  ry="28"
-                  transform="rotate(22 85 85)"
-                  stroke="url(#ariChrome)"
-                  strokeWidth="1"
-                  opacity="1"
-                />
-                <ellipse
-                  cx="137"
-                  cy="109"
-                  rx="2.2"
-                  ry="1.6"
-                  transform="rotate(22 137 109)"
-                  fill="#ffffff"
-                  opacity="0.86"
-                />
-              </g>
-
-              {/* Vertical orbit */}
-              <g className={speaking ? "ari-orbit-fast-vertical" : thinking ? "ari-orbit-medium-vertical" : "ari-orbit-slow-vertical"}>
-                <ellipse
-                  cx="85"
-                  cy="85"
-                  rx="27"
-                  ry="69"
-                  transform="rotate(-8 85 85)"
-                  stroke="url(#ariChromeDark)"
-                  strokeWidth="3"
-                  opacity="0.84"
-                />
-                <ellipse
-                  cx="85"
-                  cy="85"
-                  rx="27"
-                  ry="69"
-                  transform="rotate(-8 85 85)"
-                  stroke="url(#ariChrome)"
-                  strokeWidth="1"
-                />
-              </g>
-
-              {/* Orb */}
-              <circle cx="85" cy="85" r="38" fill="#536268" opacity="0.35" />
-              <circle cx="85" cy="85" r="36" fill="url(#ariOrb)" stroke="#7a8a8f" strokeWidth="1.4" />
-              <circle cx="85" cy="85" r="28" fill="url(#ariOrbGlow)" opacity="0.7" />
-              <circle cx="85" cy="85" r="14" fill="#f8fdff" opacity="0.94" />
-
-              {/* Internal energy rings */}
-              <ellipse
-                cx="85"
-                cy="85"
-                rx="25"
-                ry="12"
-                transform="rotate(-22 85 85)"
-                stroke="#ffffff"
-                strokeOpacity="0.42"
-                strokeWidth="1"
-              />
-              <ellipse
-                cx="85"
-                cy="85"
-                rx="30"
-                ry="15"
-                transform="rotate(24 85 85)"
-                stroke="#a9e9fa"
-                strokeOpacity="0.28"
-                strokeWidth="1"
-              />
-
-              {/* Bright surface reflection */}
-              <ellipse
-                cx="69"
-                cy="59"
-                rx="19"
-                ry="7"
-                transform="rotate(-28 69 59)"
-                fill="#ffffff"
-                opacity="0.44"
-                filter="url(#ariSoftGlow)"
-              />
-
-              {/* Front orbital plane */}
-              <g className={speaking ? "ari-orbit-front-fast" : thinking ? "ari-orbit-front-medium" : "ari-orbit-front-slow"}>
-                <path
-                  d="M20 82 C44 57 126 57 150 82 C126 107 44 107 20 82Z"
-                  stroke="url(#ariChromeDark)"
-                  strokeWidth="3.2"
-                  opacity="0.86"
-                />
-                <path
-                  d="M20 82 C44 57 126 57 150 82 C126 107 44 107 20 82Z"
-                  stroke="url(#ariChrome)"
-                  strokeWidth="1"
-                />
-              </g>
-
-              {/* Tiny celestial points */}
-              <circle cx="118" cy="27" r="1.6" fill="#d6f7ff" opacity="0.9" />
-              <circle cx="46" cy="131" r="1.5" fill="#ffffff" opacity="0.68" />
-            </svg>
-          </div>
-
-          {/* Reflection */}
-
-          <div className="absolute left-[57px] top-[45px] h-[20px] w-[38px] rotate-[-35deg] rounded-full bg-white/65 blur-[5px]" />
+      {error && (
+        <div className="absolute bottom-[78px] left-1/2 z-20 max-w-[60%] -translate-x-1/2 rounded-full border border-rose-200 bg-white/85 px-4 py-2 text-[10px] text-rose-500 shadow-sm backdrop-blur-xl">
+          {error}
         </div>
-
-        {/* ARI STATUS */}
-
-        <div className="absolute left-1/2 top-[230px] -translate-x-1/2 text-center">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.45em] text-[#4b8063]">
-            ARI
-          </div>
-
-          <div className="mt-2 text-[9px] uppercase tracking-[0.35em] text-black/35">
-            {statusLabel}
-          </div>
-        </div>
-
-        {/* VOICE WAVEFORM */}
-
-        <div className="absolute left-1/2 top-[265px] flex h-[30px] -translate-x-1/2 items-center gap-[2px]">
-          {Array.from({ length: 45 }).map((_, index) => {
-            const centerDistance = Math.abs(index - 22);
-
-            const height =
-              7 +
-              Math.max(0, 16 - centerDistance * 0.65) *
-                (active ? 1 : 0.45);
-
-            return (
-              <span
-                key={index}
-                className="w-[2px] rounded-full bg-[#67d89b]/70 transition-all duration-500"
-              style={{
-              height: `${height}px`,
-}}
-              />
-            );
-          })}
-        </div>
-
-        <div className="absolute left-1/2 top-[305px] -translate-x-1/2 text-[8px] uppercase tracking-[0.4em] text-black/30">
-          {status === "recording" ? "Listening..." : "Voice Active"}
-        </div>
-      </div>
-
-      {/* SUBTLE BOTTOM INPUT */}
-
-      <div className="absolute bottom-5 left-1/2 z-20 flex w-[58%] -translate-x-1/2 items-center rounded-[18px] border border-white/90 bg-white/60 px-5 py-3 shadow-[0_10px_30px_rgba(30,70,50,0.06)] backdrop-blur-xl">
-        <span className="text-[11px] tracking-wide text-black/35">
-          Ask ARI anything...
-        </span>
-
-        <span className="ml-auto text-black/30">↗</span>
-      </div>
+      )}
     </section>
   );
+}
+
+function getSupportedMimeType(): string {
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4",
+  ];
+
+  for (const type of types) {
+    if (
+      typeof MediaRecorder !==
+        "undefined" &&
+      MediaRecorder.isTypeSupported(type)
+    ) {
+      return type;
+    }
+  }
+
+  return "";
 }
