@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import AriCore from "../components/ari-core";
+import AriCoreVoice from "../components/ari-core-voice";
 import NewMission from "../components/new-mission";
 import Sidebar from "../components/sidebar";
 import StatCard from "../components/stat-card";
@@ -156,8 +156,6 @@ export default function Home() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1280px] px-8 py-8">
-            {/* PAGE HEADER */}
-
             <div className="mb-7 flex items-end justify-between">
               <div>
                 <p className="text-sm text-[#777099]">
@@ -166,69 +164,45 @@ export default function Home() {
 
                 <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-700">
                   Here's what's happening with{" "}
-                  <span className="text-[#169fd5]">
-                    ARI
-                  </span>{" "}
+                  <span className="text-[#169fd5]">ARI</span>{" "}
                   today.
                 </h1>
               </div>
 
-              <NewMission
-                onCreate={createDashboardMission}
-              />
+              <NewMission onCreate={createDashboardMission} />
             </div>
-
-            {/* LIVE STAT CARDS */}
 
             <div className="grid grid-cols-4 gap-4">
               <StatCard
                 label="Tasks Completed"
                 value={String(completedCount)}
-                change={
-                  missions.length > 0
-                    ? `${missions.length} total`
-                    : "NO DATA"
-                }
+                change={missions.length > 0 ? `${missions.length} total` : "NO DATA"}
                 accent="cyan"
               />
 
               <StatCard
                 label="Success Rate"
                 value={successRate}
-                change={
-                  finishedCount > 0
-                    ? `${finishedCount} finished`
-                    : "NO DATA"
-                }
+                change={finishedCount > 0 ? `${finishedCount} finished` : "NO DATA"}
                 accent="cyan"
               />
 
               <StatCard
                 label="Active Missions"
                 value={String(activeCount)}
-                change={
-                  activeCount > 0
-                    ? "ACTIVE"
-                    : "IDLE"
-                }
+                change={activeCount > 0 ? "ACTIVE" : "IDLE"}
                 accent="cyan"
               />
 
               <StatCard
                 label="Avg Response"
                 value={averageResponseTime}
-                change={
-                  completedCount > 0
-                    ? `${completedCount} measured`
-                    : "NO DATA"
-                }
+                change={completedCount > 0 ? `${completedCount} measured` : "NO DATA"}
                 accent="cyan"
               />
             </div>
 
-            {/* SINGLE ARI INTERFACE */}
-
-            <AriCore />
+            <AriCoreVoice />
           </div>
         </div>
       </section>
