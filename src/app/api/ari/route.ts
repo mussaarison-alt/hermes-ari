@@ -9,360 +9,26 @@ import { getHermesMemoryDirectory } from "../../../lib/hermes-runtime";
 export const runtime = "nodejs";
 
 const execFileAsync = promisify(execFile);
-
 const OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
 const ARI_MODEL = "qwen3:1.7b";
-
 const HIMALAYA_EXE = path.join(
-  process.env.LOCALAPPDATA ||
-    path.join(os.homedir(), "AppData", "Local"),
+  process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"),
   "Himalaya",
   "himalaya.exe",
 );
+const DEFAULT_WORKSPACE = path.join(os.homedir(), "Desktop", "ARI-workspace");
+const PENDING_EMAIL = path.join(os.tmpdir(), "hermes-ari-pending-email.json");
 
-const MAX_MEMORY_CHARS = 3000;
-const MAX_EMAIL_CHARS = 12000;
+type Message = { role: "system" | "user" | "assistant"; content: string };
 
-const DEFAULT_WORKSPACE = path.join(
-  os.homedir(),
-  "Desktop",
-  "ARI-workspace",
-);
-
-const ARI_SYSTEM_PROMPT = `
-You are ARI, the user-facing AI assistant inside the Hermes application.
-
-IDENTITY
-- Your name is ARI.
-- Be direct, concise, practical and honest.
-- Never claim an action succeeded unless there is evidence.
-- Never expose internal reasoning.
-- Never expose credentials.
-
-CURRENT INFORMATION
-- Use web_search for current or time-sensitive information.
-
-WORKSPACE
-- Use list_directory and read_file for workspace tasks.
-
-EMAIL
-- Gmail access is available through email tools.
-- Never claim to have accessed Gmail unless the tool result proves it.
-- Never expose passwords or credentials.
-`;
-
-type MessageRole =
-  | "system"
-  | "user"
-  | "assistant"
-  | "tool";
-
-type IncomingMessage = {
-  role: MessageRole;
-  content: string;
-  tool_call_id?: string;
-  tool_calls?: ToolCall[];
-};
-
-type ToolCall = {
+type EmailEnvelope = {
   id?: string;
-  type?: string;
-  function?: {
-    name?: string;
-    arguments?: Record<string, unknown> | string;
-  };
+  subject?: string;
+  date?: string;
+  from?: Array<{ name?: string | null; email?: string | null }>;
 };
 
-type OllamaMessage = {
-  role?: MessageRole;
-  content?: string;
-  thinking?: string;
-  tool_calls?: ToolCall[];
-};
-
-type OllamaResponse = {
-  message?: OllamaMessage;
-  done?: boolean;
-  error?: string;
-};
-
-type SearchResult = {
-  title: string;
-  snippet: string;
-  url: string;
-};
-
-const TOOLS = [
-  {
-    type: "function",
-    function: {
-      name: "list_directory",
-      description:
-        "List files and directories inside ARI's allowed workspace.",
-      parameters: {
-        type: "object",
-        properties: {
-          path: {
-            type: "string",
-            description:
-              "Optional relative workspace path.",
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "read_file",
-      description:
-        "Read a UTF-8 text file inside ARI's allowed workspace.",
-      parameters: {
-        type: "object",
-        properties: {
-          path: {
-            type: "string",
-            description:
-              "Relative workspace file path.",
-          },
-        },
-        required: ["path"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "web_search",
-      description:
-        "Search the web for current information.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-          },
-        },
-        required: ["query"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "email_inbox",
-      description:
-        "List or search messages in the configured Gmail account.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-          },
-          limit: {
-            type: "integer",
-            minimum: 1,
-            maximum: 25,
-          },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "email_read",
-      description:
-        "Read a specific email by Himalaya message id.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: ["string", "integer"],
-          },
-        },
-        required: ["id"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "email_send",
-      description:
-        "Send an email through the configured Gmail account.",
-      parameters: {
-        type: "object",
-        properties: {
-          to: {
-            type: "string",
-          },
-          subject: {
-            type: "string",
-          },
-          body: {
-            type: "string",
-          },
-        },
-        required: ["to", "subject", "body"],
-      },
-    },
-  },
-];
-
-function getWorkspaceRoot(): string {
-  return path.resolve(
-    process.env.ARI_WORKSPACE?.trim() ||
-      DEFAULT_WORKSPACE,
-  );
-}
-
-function normalizeToolArguments(
-  raw: unknown,
-): Record<string, unknown> {
-  if (
-    raw &&
-    typeof raw === "object" &&
-    !Array.isArray(raw)
-  ) {
-    return raw as Record<string, unknown>;
-  }
-
-  if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        !Array.isArray(parsed)
-      ) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      // Ignore invalid arguments.
-    }
-  }
-
-  return {};
-}
-
-function resolveWorkspacePath(
-  relativePath: unknown,
-): string {
-  const root = getWorkspaceRoot();
-
-  const candidate =
-    typeof relativePath === "string" &&
-    relativePath.trim()
-      ? relativePath.trim()
-      : ".";
-
-  const absolute = path.resolve(
-    root,
-    candidate,
-  );
-
-  const relative = path.relative(
-    root,
-    absolute,
-  );
-
-  if (
-    relative.startsWith("..") ||
-    path.isAbsolute(relative)
-  ) {
-    throw new Error(
-      "Workspace path is outside the allowed ARI workspace.",
-    );
-  }
-
-  return absolute;
-}
-
-async function listDirectory(
-  relativePath: unknown,
-) {
-  const root = getWorkspaceRoot();
-
-  await fs.mkdir(root, {
-    recursive: true,
-  });
-
-  const absolute =
-    resolveWorkspacePath(relativePath);
-
-  const entries =
-    await fs.readdir(
-      absolute,
-      {
-        withFileTypes: true,
-      },
-    );
-
-  return {
-    success: true,
-    path:
-      path.relative(root, absolute) ||
-      ".",
-    entries: entries
-      .sort((a, b) =>
-        a.name.localeCompare(b.name),
-      )
-      .map((entry) => ({
-        name: entry.name,
-        type: entry.isDirectory()
-          ? "directory"
-          : "file",
-      })),
-  };
-}
-
-async function readFile(
-  relativePath: unknown,
-) {
-  const relative =
-    typeof relativePath === "string"
-      ? relativePath.trim()
-      : "";
-
-  if (!relative) {
-    throw new Error(
-      "A relative file path is required.",
-    );
-  }
-
-  const absolute =
-    resolveWorkspacePath(relative);
-
-  const stat =
-    await fs.stat(absolute);
-
-  if (!stat.isFile()) {
-    throw new Error(
-      "The requested path is not a file.",
-    );
-  }
-
-  return {
-    success: true,
-    path: path.relative(
-      getWorkspaceRoot(),
-      absolute,
-    ),
-    content:
-      await fs.readFile(
-        absolute,
-        "utf8",
-      ),
-  };
-}
-
-function decodeHtmlEntities(
-  input: string,
-): string {
+function decodeHtml(input: string): string {
   return input
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
@@ -373,958 +39,338 @@ function decodeHtmlEntities(
     .replace(/&nbsp;/gi, " ");
 }
 
-function stripHtml(
-  input: string,
-): string {
-  return decodeHtmlEntities(
+function cleanText(input: string): string {
+  return decodeHtml(
     input
-      .replace(
-        /<br\s*\/?>/gi,
-        " ",
-      )
-      .replace(
-        /<[^>]*>/g,
-        " ",
-      )
-      .replace(
-        /\s+/g,
-        " ",
-      )
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/https?:\/\/\S+/gi, "")
+      .replace(/[\r\n]+/g, " ")
+      .replace(/\s+/g, " ")
       .trim(),
   );
 }
 
-function decodeBingUrl(
-  rawUrl: string,
-): string {
-  const decoded =
-    decodeHtmlEntities(rawUrl);
-
-  try {
-    const url = new URL(
-      decoded,
-      "https://www.bing.com",
-    );
-
-    const target =
-      url.searchParams.get("u");
-
-    if (!target) {
-      return decoded;
-    }
-
-    if (target.startsWith("a1")) {
-      let encoded =
-        target
-          .slice(2)
-          .replace(/-/g, "+")
-          .replace(/_/g, "/");
-
-      while (
-        encoded.length % 4 !== 0
-      ) {
-        encoded += "=";
-      }
-
-      try {
-        return atob(encoded);
-      } catch {
-        return decoded;
-      }
-    }
-
-    try {
-      return decodeURIComponent(
-        target,
-      );
-    } catch {
-      return target;
-    }
-  } catch {
-    return decoded;
-  }
+function visible(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-async function webSearch(
-  query: unknown,
-) {
-  const clean =
-    typeof query === "string"
-      ? query.trim()
-      : "";
-
-  if (!clean) {
-    throw new Error(
-      "A search query is required.",
-    );
-  }
-
-  const response = await fetch(
-    `https://www.bing.com/search?q=${encodeURIComponent(
-      clean,
-    )}&count=5&setlang=en`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      cache: "no-store",
+function sse(answer: string): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: answer } }] })}\n\n`),
+      );
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
     },
-  );
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}
+
+async function askQwen(messages: Message[], signal?: AbortSignal): Promise<string> {
+  const response = await fetch(OLLAMA_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    signal,
+    body: JSON.stringify({
+      model: ARI_MODEL,
+      stream: false,
+      think: false,
+      messages,
+    }),
+  });
 
   if (!response.ok) {
-    throw new Error(
-      `Bing returned HTTP ${response.status}.`,
-    );
+    throw new Error(`Ollama returned HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
   }
 
-  const html =
-    await response.text();
-
-  const results: SearchResult[] =
-    [];
-
-  const regex =
-    /<li[^>]+class="[^"]*\bb_algo\b[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
-
-  let match:
-    RegExpExecArray | null;
-
-  while (
-    results.length < 5 &&
-    (match = regex.exec(html))
-  ) {
-    const block = match[1];
-
-    const titleMatch =
-      block.match(
-        /<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i,
-      );
-
-    if (!titleMatch) {
-      continue;
-    }
-
-    const snippetMatch =
-      block.match(
-        /<p[^>]*>([\s\S]*?)<\/p>/i,
-      );
-
-    const title =
-      stripHtml(
-        titleMatch[2],
-      );
-
-    const snippet =
-      stripHtml(
-        snippetMatch?.[1] || "",
-      );
-
-    const url =
-      decodeBingUrl(
-        titleMatch[1],
-      );
-
-    if (
-      title &&
-      url.startsWith("http")
-    ) {
-      results.push({
-        title,
-        snippet,
-        url,
-      });
-    }
-  }
-
-  return {
-    success:
-      results.length > 0,
-    query: clean,
-    results,
-  };
+  const data = (await response.json()) as { message?: { content?: string } };
+  const answer = visible(data.message?.content || "");
+  if (!answer) throw new Error("Ollama returned no visible answer.");
+  return answer;
 }
 
-function limitText(
-  value: unknown,
-  maxChars = MAX_EMAIL_CHARS,
-): string {
-  const text =
-    typeof value === "string"
-      ? value
-      : JSON.stringify(
-          value ?? "",
-        );
-
-  if (text.length <= maxChars) {
-    return text;
-  }
-
-  return (
-    text.slice(0, maxChars) +
-    "\n...[truncated]"
-  );
-}
-
-async function runHimalaya(
-  args: string[],
-) {
-  if (!(await fileExists(
-    HIMALAYA_EXE,
-  ))) {
-    throw new Error(
-      `Himalaya executable not found at ${HIMALAYA_EXE}`,
-    );
-  }
-
+async function runHimalaya(args: string[]): Promise<string> {
   try {
-    const result =
-      await execFileAsync(
-        HIMALAYA_EXE,
-        args,
-        {
-          windowsHide: true,
-          timeout: 60000,
-          maxBuffer:
-            4 * 1024 * 1024,
-        } as Parameters<
-          typeof execFileAsync
-        >[2],
-      );
-
-    return {
-      stdout:
-        String(result.stdout).trim(),
-      stderr:
-        String(result.stderr).trim(),
-    };
-  } catch (error: unknown) {
-    const err =
-      error as {
-        stdout?: string;
-        stderr?: string;
-        message?: string;
-      };
-
-    const detail =
-      String(
-        err.stderr ||
-          err.stdout ||
-          err.message ||
-          "Unknown Himalaya error",
-      ).trim();
-
-    throw new Error(
-      `Himalaya email operation failed: ${detail}`,
-    );
-  }
-}
-
-async function fileExists(
-  filePath: string,
-): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
+    await fs.access(HIMALAYA_EXE);
   } catch {
-    return false;
+    throw new Error(`Himalaya executable not found at ${HIMALAYA_EXE}`);
+  }
+
+  try {
+    const result = await execFileAsync(HIMALAYA_EXE, args, {
+      windowsHide: true,
+      timeout: 60000,
+      maxBuffer: 4 * 1024 * 1024,
+    } as Parameters<typeof execFileAsync>[2]);
+    return String(result.stdout).trim();
+  } catch (error: unknown) {
+    const err = error as { stdout?: string; stderr?: string; message?: string };
+    throw new Error(
+      `Himalaya email operation failed: ${String(err.stderr || err.stdout || err.message || "Unknown error").trim()}`,
+    );
   }
 }
 
-function parseJson(
-  text: string,
-): unknown {
+function parseJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(
-      `Himalaya returned invalid JSON: ${text.slice(
-        0,
-        500,
-      )}`,
-    );
+    throw new Error(`Himalaya returned invalid JSON: ${text.slice(0, 300)}`);
   }
 }
 
-function normalizeEmailMessages(
-  parsed: unknown,
-): unknown[] {
-  if (Array.isArray(parsed)) {
-    return parsed;
+function envelopes(value: unknown): EmailEnvelope[] {
+  if (Array.isArray(value)) return value as EmailEnvelope[];
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    if (Array.isArray(obj.envelopes)) return obj.envelopes as EmailEnvelope[];
+    if (Array.isArray(obj.messages)) return obj.messages as EmailEnvelope[];
   }
-
-  if (
-    parsed &&
-    typeof parsed === "object"
-  ) {
-    const object =
-      parsed as Record<
-        string,
-        unknown
-      >;
-
-    if (
-      Array.isArray(
-        object.envelopes,
-      )
-    ) {
-      return object.envelopes;
-    }
-
-    if (
-      Array.isArray(
-        object.messages,
-      )
-    ) {
-      return object.messages;
-    }
-  }
-
   return [];
 }
 
-async function emailInbox(
-  args: Record<string, unknown> = {},
-) {
-  const limit = Math.max(
-    1,
-    Math.min(
-      25,
-      Number(args.limit) || 10,
-    ),
-  );
-
-  const query =
-    typeof args.query === "string"
-      ? args.query.trim()
-      : "";
-
-  const commandArgs = query
-    ? [
-        "envelope",
-        "search",
-        "--json",
-        query,
-      ]
-    : [
-        "envelope",
-        "list",
-        "--json",
-      ];
-
-  const result =
-    await runHimalaya(
-      commandArgs,
-    );
-
-  const parsed =
-    parseJson(result.stdout);
-
-  const messages =
-    normalizeEmailMessages(
-      parsed,
-    ).slice(0, limit);
-
-  return {
-    success: true,
-    count: messages.length,
-    query: query || null,
-    messages,
-  };
+async function getInbox(limit = 5): Promise<EmailEnvelope[]> {
+  const raw = await runHimalaya(["envelope", "list", "--json"]);
+  return envelopes(parseJson(raw)).slice(0, limit);
 }
 
-async function emailRead(
-  args: Record<string, unknown>,
-) {
-  const id =
-    args.id == null
-      ? ""
-      : String(args.id).trim();
-
-  if (!id) {
-    throw new Error(
-      "An email id is required.",
-    );
-  }
-
-  const result =
-    await runHimalaya([
-      "message",
-      "read",
-      "--json",
-      id,
-    ]);
-
-  return {
-    success: true,
-    id,
-    message:
-      limitText(
-        parseJson(
-          result.stdout,
-        ),
-      ),
-  };
+async function readEmail(id: string): Promise<string> {
+  return runHimalaya(["message", "read", "--json", id]);
 }
 
-async function emailSend(
-  args: Record<string, unknown>,
-) {
-  const to =
-    typeof args.to === "string"
-      ? args.to.trim()
-      : "";
-
-  const subject =
-    typeof args.subject ===
-    "string"
-      ? args.subject.trim()
-      : "";
-
-  const body =
-    typeof args.body === "string"
-      ? args.body
-      : "";
-
-  if (
-    !to ||
-    !subject ||
-    !body.trim()
-  ) {
-    throw new Error(
-      "Recipient, subject, and body are required.",
-    );
-  }
-
-  const result =
-    await runHimalaya([
-      "message",
-      "compose",
-      "--to",
-      to,
-      "--subject",
-      subject,
-      "--body",
-      body,
-      "--send",
-    ]);
-
-  return {
-    success: true,
-    to,
-    subject,
-    output:
-      result.stdout ||
-      "Email sent.",
-  };
-}
-
-async function loadMemory() {
+async function getOwnEmail(): Promise<string> {
   try {
-    const directory =
-      getHermesMemoryDirectory();
+    const config = await fs.readFile(
+      path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "himalaya", "config.toml"),
+      "utf8",
+    );
+    const match = config.match(/(?:^|\n)email\s*=\s*["']([^"']+)["']/i);
+    return match?.[1] || process.env.ARI_EMAIL_ADDRESS || "";
+  } catch {
+    return process.env.ARI_EMAIL_ADDRESS || "";
+  }
+}
 
-    const entries =
-      await fs.readdir(
-        directory,
-        {
-          withFileTypes: true,
-        },
-      );
+function inferSender(email: EmailEnvelope): string {
+  const sender = email.from?.[0];
+  return sender?.name || sender?.email || "Unknown sender";
+}
 
-    let output = "";
+async function emailBrief(userText: string): Promise<string> {
+  const items = await getInbox(5);
+  if (items.length === 0) return "Your inbox is empty.";
 
-    for (
-      const entry of entries
-        .filter(
-          (entry) =>
-            entry.isFile() &&
-            /\.(md|txt|json)$/i.test(
-              entry.name,
-            ),
-        )
-        .slice(0, 5)
-    ) {
-      const content =
-        await fs.readFile(
-          path.join(
-            directory,
-            entry.name,
-          ),
-          "utf8",
-        );
-
-      const room =
-        MAX_MEMORY_CHARS -
-        output.length;
-
-      if (room <= 0) {
-        break;
+  const enriched = [];
+  for (const email of items) {
+    let body = "";
+    if (email.id) {
+      try {
+        body = cleanText(await readEmail(String(email.id)));
+      } catch {
+        body = "";
       }
-
-      output +=
-        `\n[${entry.name}]\n` +
-        content.slice(
-          0,
-          room,
-        );
     }
-
-    return output.trim();
-  } catch {
-    return "";
-  }
-}
-
-async function callOllama(
-  messages: IncomingMessage[],
-): Promise<OllamaResponse> {
-  let response: Response;
-
-  try {
-    response =
-      await fetch(
-        OLLAMA_URL,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            model: ARI_MODEL,
-            messages,
-            tools: TOOLS,
-            stream: false,
-            think: false,
-          }),
-          cache: "no-store",
-        },
-      );
-  } catch {
-    throw new Error(
-      "Ollama is not reachable at 127.0.0.1:11434.",
-    );
-  }
-
-  if (!response.ok) {
-    const body =
-      await response.text();
-
-    throw new Error(
-      `Ollama returned HTTP ${response.status}: ${body.slice(
-        0,
-        500,
-      )}`,
-    );
-  }
-
-  return (
-    (await response.json()) as OllamaResponse
-  );
-}
-
-function visibleContent(
-  message?: OllamaMessage,
-): string {
-  return (
-    message?.content
-      ?.replace(
-        /<think>[\s\S]*?<\/think>/gi,
-        "",
-      )
-      .trim() || ""
-  );
-}
-
-function isInboxRequest(
-  text: string,
-): boolean {
-  const normalized =
-    text
-      .toLowerCase()
-      .replace(/[!?.,]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  return [
-    "check my email",
-    "check my emails",
-    "check my gmail",
-    "check gmail",
-    "show my email",
-    "show my emails",
-    "show my gmail",
-    "show my inbox",
-    "open my inbox",
-    "read my inbox",
-    "latest emails",
-    "latest email",
-    "recent emails",
-    "recent email",
-    "new emails",
-    "new email",
-    "what emails did i get",
-    "what email did i get",
-    "what did i get in my email",
-  ].some(
-    (phrase) =>
-      normalized === phrase ||
-      normalized.includes(
-        phrase,
-      ),
-  );
-}
-
-function formatInbox(
-  messages: unknown[],
-): string {
-  if (messages.length === 0) {
-    return "Your inbox is empty.";
-  }
-
-  const lines: string[] = [
-    `You have ${messages.length} recent emails:`,
-    "",
-  ];
-
-  for (
-    let index = 0;
-    index < messages.length;
-    index++
-  ) {
-    const item =
-      messages[index];
-
-    if (
-      !item ||
-      typeof item !==
-        "object"
-    ) {
-      continue;
-    }
-
-    const email =
-      item as Record<
-        string,
-        unknown
-      >;
-
-    const from =
-      Array.isArray(
-        email.from,
-      )
-        ? (
-            email.from[0] as Record<
-              string,
-              unknown
-            >
-          )
-        : null;
-
-    const sender =
-      from?.name ||
-      from?.email ||
-      "Unknown sender";
-
-    const subject =
-      typeof email.subject ===
-      "string"
-        ? email.subject
-        : "(No subject)";
-
-    const date =
-      typeof email.date ===
-      "string"
-        ? email.date
-        : "";
-
-    lines.push(
-      `${index + 1}. ${subject}`,
-    );
-    lines.push(
-      `   From: ${sender}`,
-    );
-
-    if (date) {
-      lines.push(
-        `   Date: ${date}`,
-      );
-    }
-
-    lines.push("");
-  }
-
-  return lines.join("\n").trim();
-}
-
-async function executeTool(
-  name: string,
-  args: Record<string, unknown>,
-) {
-  switch (name) {
-    case "list_directory":
-      return listDirectory(
-        args.path,
-      );
-
-    case "read_file":
-      return readFile(
-        args.path,
-      );
-
-    case "web_search":
-      return webSearch(
-        args.query,
-      );
-
-    case "email_inbox":
-      return emailInbox(args);
-
-    case "email_read":
-      return emailRead(args);
-
-    case "email_send":
-      return emailSend(args);
-
-    default:
-      throw new Error(
-        `Unknown ARI tool: ${name}`,
-      );
-  }
-}
-
-function makeSseResponse(
-  answer: string,
-): Response {
-  const encoder =
-    new TextEncoder();
-
-  const stream =
-    new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              choices: [
-                {
-                  delta: {
-                    content: answer,
-                  },
-                },
-              ],
-            })}\n\n`,
-          ),
-        );
-
-        controller.enqueue(
-          encoder.encode(
-            "data: [DONE]\n\n",
-          ),
-        );
-
-        controller.close();
-      },
+    enriched.push({
+      sender: inferSender(email),
+      subject: cleanText(email.subject || "(No subject)"),
+      date: email.date || "",
+      preview: body.slice(0, 900),
     });
+  }
 
-  return new Response(
-    stream,
+  return askQwen([
     {
-      headers: {
-        "Content-Type":
-          "text/event-stream; charset=utf-8",
-        "Cache-Control":
-          "no-cache, no-transform",
-        Connection:
-          "keep-alive",
-      },
+      role: "system",
+      content:
+        "You are ARI's conversational voice. Brief the user's email inbox naturally. " +
+        "Use only the supplied email facts. For each email give sender, subject, and a short plain-English description. " +
+        "Do not mention JSON, HTML, URLs, message IDs, MIME, headers, markdown, or internal tools. " +
+        "For a latest-email request, lead with the newest email and keep the answer under 4 sentences. " +
+        "Do not read the entire body unless the user explicitly asks to read the email.",
     },
-  );
+    { role: "user", content: `User request: ${userText}\n\nEmail facts:\n${JSON.stringify(enriched)}` },
+  ]);
 }
 
-export async function POST(
-  request: Request,
-) {
+async function emailFullRead(): Promise<string> {
+  const items = await getInbox(1);
+  if (!items[0]?.id) return "I couldn't find a recent email to read.";
+  const raw = cleanText(await readEmail(String(items[0].id)));
+  return askQwen([
+    {
+      role: "system",
+      content:
+        "You are ARI's conversational voice. Read the supplied email in a natural, concise way. " +
+        "Remove HTML, URLs, tracking text, metadata, message IDs and technical formatting. " +
+        "Preserve the meaningful content. Do not invent missing details.",
+    },
+    { role: "user", content: raw.slice(0, 7000) },
+  ]);
+}
+
+async function currentWeb(query: string): Promise<string> {
+  const response = await fetch(
+    `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=5&setlang=en`,
+    { headers: { "User-Agent": "Mozilla/5.0" }, cache: "no-store" },
+  );
+  if (!response.ok) throw new Error(`Bing returned HTTP ${response.status}.`);
+  const html = await response.text();
+  const results: Array<{ title: string; snippet: string }> = [];
+  const regex = /<li[^>]+class="[^"]*\bb_algo\b[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
+  let match: RegExpExecArray | null;
+  while (results.length < 5 && (match = regex.exec(html))) {
+    const titleMatch = match[1].match(/<h2[^>]*>\s*<a[^>]+href="[^"]+"[^>]*>([\s\S]*?)<\/a>/i);
+    const snippetMatch = match[1].match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+    if (titleMatch) results.push({ title: cleanText(titleMatch[1]), snippet: cleanText(snippetMatch?.[1] || "") });
+  }
+  if (!results.length) return "No current web results were found.";
+  return askQwen([
+    { role: "system", content: "You are ARI's conversational voice. Answer using only the supplied current web results. Be concise and natural. Do not mention HTML, URLs, search engines, or internal tools. Do not invent facts." },
+    { role: "user", content: `Question: ${query}\n\nResults:\n${JSON.stringify(results)}` },
+  ]);
+}
+
+async function workspaceAnswer(text: string): Promise<string> {
+  const root = path.resolve(process.env.ARI_WORKSPACE?.trim() || DEFAULT_WORKSPACE);
+  if (/list|show|files|folder|directory/i.test(text)) {
+    await fs.mkdir(root, { recursive: true });
+    const entries = await fs.readdir(root, { withFileTypes: true });
+    return askQwen([
+      { role: "system", content: "You are ARI's conversational voice. Brief the supplied workspace listing naturally. Do not mention internal JSON." },
+      { role: "user", content: JSON.stringify(entries.map((e) => ({ name: e.name, type: e.isDirectory() ? "folder" : "file" }))) },
+    ]);
+  }
+  const fileMatch = text.match(/(?:read|open)\s+(?:the\s+)?(?:file\s+)?["']?([^"']+?)(?:["']?\s*)$/i);
+  if (!fileMatch) return "Tell me which workspace file you want me to read.";
+  const candidate = path.resolve(root, fileMatch[1].trim());
+  const relative = path.relative(root, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("That file is outside the ARI workspace.");
+  const content = await fs.readFile(candidate, "utf8");
+  return askQwen([
+    { role: "system", content: "You are ARI's conversational voice. Summarize the supplied file naturally and concisely. Do not mention internal tools or formatting." },
+    { role: "user", content: content.slice(0, 10000) },
+  ]);
+}
+
+function isConfirm(text: string): boolean {
+  return /^(confirm|confirmed|yes|yes send|send it|do it|go ahead)$/i.test(text.trim());
+}
+
+function isEmailBrief(text: string): boolean {
+  return /\b(email|emails|gmail|inbox)\b/i.test(text) && !/\b(send|write|compose|reply|forward|read)\b/i.test(text);
+}
+
+function isEmailRead(text: string): boolean {
+  return /\b(read|open|show me the full|full email)\b/i.test(text) && /\b(email|inbox|gmail)\b/i.test(text);
+}
+
+function isEmailSend(text: string): boolean {
+  return /\b(send|email|mail|compose)\b/i.test(text) && /\bemail|mail\b/i.test(text);
+}
+
+function parseRecipient(text: string, ownEmail: string): string {
+  if (/\b(myself|my own|my account|me)\b/i.test(text)) return ownEmail;
+  const match = text.match(/\b(?:to|at)\s+([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})\b/i);
+  return match?.[1] || "";
+}
+
+function parseEmailBody(text: string): { to: string; subject: string; body: string } {
+  const to = text.match(/\b(?:to|at)\s+([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})\b/i)?.[1] || "";
+  const subjectMatch = text.match(/\bsubject\s*[:=-]\s*(.+?)(?:\s+body\s*[:=-]|$)/i);
+  const bodyMatch = text.match(/\bbody\s*[:=-]\s*([\s\S]+)$/i);
+  return {
+    to,
+    subject: cleanText(subjectMatch?.[1] || "ARI test email"),
+    body: cleanText(bodyMatch?.[1] || "This is a test email sent by ARI."),
+  };
+}
+
+async function stageEmailSend(text: string): Promise<string> {
+  const ownEmail = await getOwnEmail();
+  const to = parseRecipient(text, ownEmail);
+  const parsed = parseEmailBody(text);
+  if (!to) return "Who should I send it to? Give me an email address or say 'myself'.";
+  const pending = { to, subject: parsed.subject, body: parsed.body };
+  await fs.writeFile(PENDING_EMAIL, JSON.stringify(pending), "utf8");
+  return `I can send a test email to ${to} with the subject ${parsed.subject}. Say confirm to send it.`;
+}
+
+async function confirmEmailSend(): Promise<string> {
+  let pending: { to?: string; subject?: string; body?: string };
   try {
-    const body =
-      (await request.json()) as {
-        messages?: IncomingMessage[];
-      };
+    pending = JSON.parse(await fs.readFile(PENDING_EMAIL, "utf8"));
+  } catch {
+    return "There is no pending email to send.";
+  }
+  if (!pending.to || !pending.subject || !pending.body) return "The pending email is incomplete.";
+  const output = await runHimalaya([
+    "message", "compose", "--to", pending.to, "--subject", pending.subject, "--body", pending.body, "--send",
+  ]);
+  await fs.rm(PENDING_EMAIL, { force: true });
+  return output ? `Done. The email was sent to ${pending.to}.` : `Done. The email was sent to ${pending.to}.`;
+}
 
-    const incoming =
-      Array.isArray(body.messages)
-        ? body.messages
-        : [];
+function intent(text: string): "confirm" | "email-read" | "email-brief" | "email-send" | "workspace" | "web" | "chat" {
+  const lower = text.toLowerCase();
+  if (isConfirm(text)) return "confirm";
+  if (/\b(send|compose|write)\b/.test(lower) && /\b(email|mail)\b/.test(lower)) return "email-send";
+  if (isEmailRead(text)) return "email-read";
+  if (isEmailBrief(text)) return "email-brief";
+  if (/\b(workspace|file|folder|directory)\b/i.test(text)) return "workspace";
+  if (/\b(search|look up|find online|current|latest|today|what happened)\b/i.test(text)) return "web";
+  return "chat";
+}
 
-    const lastUser =
-      [...incoming]
-        .reverse()
-        .find(
-          (message) =>
-            message.role ===
-            "user",
-        );
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as { messages?: Message[] };
+    const incoming = Array.isArray(body.messages) ? body.messages : [];
+    const lastUser = [...incoming].reverse().find((m) => m.role === "user");
+    const text = lastUser?.content?.trim() || "";
+    if (!text) throw new Error("No user message was provided.");
 
-    const userText =
-      lastUser?.content || "";
+    const selected = intent(text);
+    let answer: string;
 
-    /*
-     * DETERMINISTIC GMAIL PATH
-     *
-     * Do not ask the 1.7B model whether
-     * "check my email" means Gmail.
-     * Call Himalaya directly.
-     */
-    if (
-      isInboxRequest(userText)
-    ) {
-      const inbox =
-        await emailInbox({
-          limit: 10,
-        });
-
-      return makeSseResponse(
-        formatInbox(
-          inbox.messages,
-        ),
-      );
+    switch (selected) {
+      case "confirm":
+        answer = await confirmEmailSend();
+        break;
+      case "email-send":
+        answer = await stageEmailSend(text);
+        break;
+      case "email-read":
+        answer = await emailFullRead();
+        break;
+      case "email-brief":
+        answer = await emailBrief(text);
+        break;
+      case "workspace":
+        answer = await workspaceAnswer(text);
+        break;
+      case "web":
+        answer = await currentWeb(text);
+        break;
+      default:
+        answer = await askQwen([
+          { role: "system", content: "You are ARI, a concise, practical conversational assistant. You are only responsible for natural conversation. Do not claim to have performed external actions." },
+          ...incoming.slice(-12),
+        ]);
     }
 
-    const memory =
-      await loadMemory();
-
-    const messages: IncomingMessage[] =
-      [
-        {
-          role: "system",
-          content:
-            ARI_SYSTEM_PROMPT,
-        },
-
-        ...(memory
-          ? [
-              {
-                role: "system",
-                content:
-                  `Persistent Hermes memory:\n${memory}`,
-              } as IncomingMessage,
-            ]
-          : []),
-
-        ...incoming,
-      ];
-
-    const ollama =
-      await callOllama(
-        messages,
-      );
-
-    let assistant =
-      ollama.message;
-
-    const toolCalls =
-      assistant?.tool_calls || [];
-
-    if (toolCalls.length > 0) {
-      messages.push({
-        role: "assistant",
-        content:
-          visibleContent(
-            assistant,
-          ),
-        tool_calls:
-          toolCalls,
-      });
-
-      for (
-        const call of toolCalls
-      ) {
-        const name =
-          call.function?.name ||
-          "";
-
-        const args =
-          normalizeToolArguments(
-            call.function?.arguments,
-          );
-
-        try {
-          const result =
-            await executeTool(
-              name,
-              args,
-            );
-
-          messages.push({
-            role: "tool",
-            tool_call_id:
-              call.id || name,
-            content:
-              JSON.stringify({
-                success: true,
-                result:
-                  limitText(
-                    result,
-                  ),
-              }),
-          });
-        } catch (error: unknown) {
-          const detail =
-            error instanceof Error
-              ? error.message
-              : String(error);
-
-          messages.push({
-            role: "tool",
-            tool_call_id:
-              call.id || name,
-            content:
-              JSON.stringify({
-                success: false,
-                error: detail,
-              }),
-          });
-        }
-      }
-
-      const final =
-        await callOllama(
-          messages,
-        );
-
-      assistant =
-        final.message;
-    }
-
-    const answer =
-      visibleContent(
-        assistant,
-      );
-
-    if (!answer) {
-      throw new Error(
-        "Ollama returned no visible answer.",
-      );
-    }
-
-    return makeSseResponse(
-      answer,
-    );
+    return sse(answer);
   } catch (error: unknown) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
-
-    return NextResponse.json(
-      {
-        error: message,
-      },
-      {
-        status: 500,
-      },
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
