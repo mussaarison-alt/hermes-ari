@@ -13,6 +13,13 @@ const execFileAsync = promisify(execFile);
 const OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
 const ARI_MODEL = "qwen3:1.7b";
 
+const HIMALAYA_EXE = path.join(
+  process.env.LOCALAPPDATA ||
+    path.join(os.homedir(), "AppData", "Local"),
+  "Himalaya",
+  "himalaya.exe",
+);
+
 const MAX_MEMORY_CHARS = 3000;
 const MAX_EMAIL_CHARS = 12000;
 
@@ -27,40 +34,21 @@ You are ARI, the user-facing AI assistant inside the Hermes application.
 
 IDENTITY
 - Your name is ARI.
-- Hermes is the underlying runtime/platform.
-- Do not call yourself Hermes Agent unless explicitly asked.
-- Do not volunteer the model or provider name.
-
-PERSONALITY
-- Direct.
-- Calm.
-- Intelligent.
-- Precise.
-- Concise by default.
-- Practical.
-- Honest about uncertainty.
-- Never fabricate actions or results.
-
-COMMUNICATION
-- Lead with the answer.
-- Avoid unnecessary explanation.
-- Do not expose internal reasoning.
-- Do not describe your thinking process.
-- Do not say that you performed an action unless a tool result confirms it.
+- Be direct, concise, practical and honest.
+- Never claim an action succeeded unless there is evidence.
+- Never expose internal reasoning.
+- Never expose credentials.
 
 CURRENT INFORMATION
 - Use web_search for current or time-sensitive information.
 
 WORKSPACE
-- Use list_directory and read_file for ARI's workspace.
+- Use list_directory and read_file for workspace tasks.
 
 EMAIL
-- You can read/search the configured Gmail account through email_inbox and email_read.
-- You can send email through email_send.
-- Reading email requires no confirmation.
-- Sending email requires an explicit user request.
-- Never claim an email was sent unless email_send succeeds.
-- Never expose credentials.
+- Gmail access is available through email tools.
+- Never claim to have accessed Gmail unless the tool result proves it.
+- Never expose passwords or credentials.
 `;
 
 type MessageRole =
@@ -116,6 +104,8 @@ const TOOLS = [
         properties: {
           path: {
             type: "string",
+            description:
+              "Optional relative workspace path.",
           },
         },
         required: [],
@@ -133,6 +123,8 @@ const TOOLS = [
         properties: {
           path: {
             type: "string",
+            description:
+              "Relative workspace file path.",
           },
         },
         required: ["path"],
@@ -161,7 +153,7 @@ const TOOLS = [
     function: {
       name: "email_inbox",
       description:
-        "List or search messages in the user's configured Gmail account.",
+        "List or search messages in the configured Gmail account.",
       parameters: {
         type: "object",
         properties: {
@@ -183,7 +175,7 @@ const TOOLS = [
     function: {
       name: "email_read",
       description:
-        "Read one email by its Himalaya message id.",
+        "Read a specific email by Himalaya message id.",
       parameters: {
         type: "object",
         properties: {
@@ -240,7 +232,7 @@ function normalizeToolArguments(
 
   if (typeof raw === "string") {
     try {
-      const parsed = JSON.parse(raw) as unknown;
+      const parsed = JSON.parse(raw);
 
       if (
         parsed &&
@@ -250,7 +242,7 @@ function normalizeToolArguments(
         return parsed as Record<string, unknown>;
       }
     } catch {
-      // Ignore malformed tool arguments.
+      // Ignore invalid arguments.
     }
   }
 
@@ -300,9 +292,7 @@ async function listDirectory(
   });
 
   const absolute =
-    resolveWorkspacePath(
-      relativePath,
-    );
+    resolveWorkspacePath(relativePath);
 
   const entries =
     await fs.readdir(
@@ -319,9 +309,7 @@ async function listDirectory(
       ".",
     entries: entries
       .sort((a, b) =>
-        a.name.localeCompare(
-          b.name,
-        ),
+        a.name.localeCompare(b.name),
       )
       .map((entry) => ({
         name: entry.name,
@@ -335,27 +323,26 @@ async function listDirectory(
 async function readFile(
   relativePath: unknown,
 ) {
-  if (
-    typeof relativePath !==
-      "string" ||
-    !relativePath.trim()
-  ) {
+  const relative =
+    typeof relativePath === "string"
+      ? relativePath.trim()
+      : "";
+
+  if (!relative) {
     throw new Error(
       "A relative file path is required.",
     );
   }
 
   const absolute =
-    resolveWorkspacePath(
-      relativePath,
-    );
+    resolveWorkspacePath(relative);
 
   const stat =
     await fs.stat(absolute);
 
   if (!stat.isFile()) {
     throw new Error(
-      "The requested workspace path is not a file.",
+      "The requested path is not a file.",
     );
   }
 
@@ -571,21 +558,31 @@ function limitText(
           value ?? "",
         );
 
-  return text.length > maxChars
-    ? `${text.slice(
-        0,
-        maxChars,
-      )}\n...[truncated]`
-    : text;
+  if (text.length <= maxChars) {
+    return text;
+  }
+
+  return (
+    text.slice(0, maxChars) +
+    "\n...[truncated]"
+  );
 }
 
 async function runHimalaya(
   args: string[],
 ) {
+  if (!(await fileExists(
+    HIMALAYA_EXE,
+  ))) {
+    throw new Error(
+      `Himalaya executable not found at ${HIMALAYA_EXE}`,
+    );
+  }
+
   try {
     const result =
       await execFileAsync(
-        "himalaya",
+        HIMALAYA_EXE,
         args,
         {
           windowsHide: true,
@@ -611,14 +608,28 @@ async function runHimalaya(
         message?: string;
       };
 
-    throw new Error(
-      (
+    const detail =
+      String(
         err.stderr ||
-        err.stdout ||
-        err.message ||
-        "Unknown Himalaya error"
-      ).trim(),
+          err.stdout ||
+          err.message ||
+          "Unknown Himalaya error",
+      ).trim();
+
+    throw new Error(
+      `Himalaya email operation failed: ${detail}`,
     );
+  }
+}
+
+async function fileExists(
+  filePath: string,
+): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -629,7 +640,7 @@ function parseJson(
     return JSON.parse(text);
   } catch {
     throw new Error(
-      `Himalaya returned non-JSON output: ${text.slice(
+      `Himalaya returned invalid JSON: ${text.slice(
         0,
         500,
       )}`,
@@ -637,8 +648,45 @@ function parseJson(
   }
 }
 
+function normalizeEmailMessages(
+  parsed: unknown,
+): unknown[] {
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+
+  if (
+    parsed &&
+    typeof parsed === "object"
+  ) {
+    const object =
+      parsed as Record<
+        string,
+        unknown
+      >;
+
+    if (
+      Array.isArray(
+        object.envelopes,
+      )
+    ) {
+      return object.envelopes;
+    }
+
+    if (
+      Array.isArray(
+        object.messages,
+      )
+    ) {
+      return object.messages;
+    }
+  }
+
+  return [];
+}
+
 async function emailInbox(
-  args: Record<string, unknown>,
+  args: Record<string, unknown> = {},
 ) {
   const limit = Math.max(
     1,
@@ -674,13 +722,16 @@ async function emailInbox(
   const parsed =
     parseJson(result.stdout);
 
+  const messages =
+    normalizeEmailMessages(
+      parsed,
+    ).slice(0, limit);
+
   return {
     success: true,
+    count: messages.length,
     query: query || null,
-    messages:
-      Array.isArray(parsed)
-        ? parsed.slice(0, limit)
-        : parsed,
+    messages,
   };
 }
 
@@ -786,13 +837,15 @@ async function loadMemory() {
     let output = "";
 
     for (
-      const entry of entries.filter(
-        (entry) =>
-          entry.isFile() &&
-          /\.(md|txt|json)$/i.test(
-            entry.name,
-          ),
-      ).slice(0, 5)
+      const entry of entries
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            /\.(md|txt|json)$/i.test(
+              entry.name,
+            ),
+        )
+        .slice(0, 5)
     ) {
       const content =
         await fs.readFile(
@@ -803,11 +856,11 @@ async function loadMemory() {
           "utf8",
         );
 
-      const remaining =
+      const room =
         MAX_MEMORY_CHARS -
         output.length;
 
-      if (remaining <= 0) {
+      if (room <= 0) {
         break;
       }
 
@@ -815,7 +868,7 @@ async function loadMemory() {
         `\n[${entry.name}]\n` +
         content.slice(
           0,
-          remaining,
+          room,
         );
     }
 
@@ -825,45 +878,9 @@ async function loadMemory() {
   }
 }
 
-async function executeTool(
-  name: string,
-  args: Record<string, unknown>,
-) {
-  switch (name) {
-    case "list_directory":
-      return listDirectory(
-        args.path,
-      );
-
-    case "read_file":
-      return readFile(
-        args.path,
-      );
-
-    case "web_search":
-      return webSearch(
-        args.query,
-      );
-
-    case "email_inbox":
-      return emailInbox(args);
-
-    case "email_read":
-      return emailRead(args);
-
-    case "email_send":
-      return emailSend(args);
-
-    default:
-      throw new Error(
-        `Unknown ARI tool: ${name}`,
-      );
-  }
-}
-
 async function callOllama(
   messages: IncomingMessage[],
-) {
+): Promise<OllamaResponse> {
   let response: Response;
 
   try {
@@ -909,31 +926,6 @@ async function callOllama(
   );
 }
 
-function shouldForceWebSearch(
-  text: string,
-): boolean {
-  const query =
-    text
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim();
-
-  return [
-    /\blatest\b/,
-    /\bcurrent\b/,
-    /\brecent\b/,
-    /\btoday\b/,
-    /\bnow\b/,
-    /\blive\b/,
-    /\bweather\b/,
-    /\bstock price\b/,
-    /\bbitcoin price\b/,
-  ].some(
-    (pattern) =>
-      pattern.test(query),
-  );
-}
-
 function visibleContent(
   message?: OllamaMessage,
 ): string {
@@ -947,18 +939,209 @@ function visibleContent(
   );
 }
 
-function openAiSse(
-  content: string,
+function isInboxRequest(
+  text: string,
+): boolean {
+  const normalized =
+    text
+      .toLowerCase()
+      .replace(/[!?.,]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  return [
+    "check my email",
+    "check my emails",
+    "check my gmail",
+    "check gmail",
+    "show my email",
+    "show my emails",
+    "show my gmail",
+    "show my inbox",
+    "open my inbox",
+    "read my inbox",
+    "latest emails",
+    "latest email",
+    "recent emails",
+    "recent email",
+    "new emails",
+    "new email",
+    "what emails did i get",
+    "what email did i get",
+    "what did i get in my email",
+  ].some(
+    (phrase) =>
+      normalized === phrase ||
+      normalized.includes(
+        phrase,
+      ),
+  );
+}
+
+function formatInbox(
+  messages: unknown[],
 ): string {
-  return `data: ${JSON.stringify({
-    choices: [
-      {
-        delta: {
-          content,
-        },
+  if (messages.length === 0) {
+    return "Your inbox is empty.";
+  }
+
+  const lines: string[] = [
+    `You have ${messages.length} recent emails:`,
+    "",
+  ];
+
+  for (
+    let index = 0;
+    index < messages.length;
+    index++
+  ) {
+    const item =
+      messages[index];
+
+    if (
+      !item ||
+      typeof item !==
+        "object"
+    ) {
+      continue;
+    }
+
+    const email =
+      item as Record<
+        string,
+        unknown
+      >;
+
+    const from =
+      Array.isArray(
+        email.from,
+      )
+        ? (
+            email.from[0] as Record<
+              string,
+              unknown
+            >
+          )
+        : null;
+
+    const sender =
+      from?.name ||
+      from?.email ||
+      "Unknown sender";
+
+    const subject =
+      typeof email.subject ===
+      "string"
+        ? email.subject
+        : "(No subject)";
+
+    const date =
+      typeof email.date ===
+      "string"
+        ? email.date
+        : "";
+
+    lines.push(
+      `${index + 1}. ${subject}`,
+    );
+    lines.push(
+      `   From: ${sender}`,
+    );
+
+    if (date) {
+      lines.push(
+        `   Date: ${date}`,
+      );
+    }
+
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
+}
+
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+) {
+  switch (name) {
+    case "list_directory":
+      return listDirectory(
+        args.path,
+      );
+
+    case "read_file":
+      return readFile(
+        args.path,
+      );
+
+    case "web_search":
+      return webSearch(
+        args.query,
+      );
+
+    case "email_inbox":
+      return emailInbox(args);
+
+    case "email_read":
+      return emailRead(args);
+
+    case "email_send":
+      return emailSend(args);
+
+    default:
+      throw new Error(
+        `Unknown ARI tool: ${name}`,
+      );
+  }
+}
+
+function makeSseResponse(
+  answer: string,
+): Response {
+  const encoder =
+    new TextEncoder();
+
+  const stream =
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              choices: [
+                {
+                  delta: {
+                    content: answer,
+                  },
+                },
+              ],
+            })}\n\n`,
+          ),
+        );
+
+        controller.enqueue(
+          encoder.encode(
+            "data: [DONE]\n\n",
+          ),
+        );
+
+        controller.close();
       },
-    ],
-  })}\n\ndata: [DONE]\n\n`;
+    });
+
+  return new Response(
+    stream,
+    {
+      headers: {
+        "Content-Type":
+          "text/event-stream; charset=utf-8",
+        "Cache-Control":
+          "no-cache, no-transform",
+        Connection:
+          "keep-alive",
+      },
+    },
+  );
 }
 
 export async function POST(
@@ -980,8 +1163,34 @@ export async function POST(
         .reverse()
         .find(
           (message) =>
-            message.role === "user",
+            message.role ===
+            "user",
         );
+
+    const userText =
+      lastUser?.content || "";
+
+    /*
+     * DETERMINISTIC GMAIL PATH
+     *
+     * Do not ask the 1.7B model whether
+     * "check my email" means Gmail.
+     * Call Himalaya directly.
+     */
+    if (
+      isInboxRequest(userText)
+    ) {
+      const inbox =
+        await emailInbox({
+          limit: 10,
+        });
+
+      return makeSseResponse(
+        formatInbox(
+          inbox.messages,
+        ),
+      );
+    }
 
     const memory =
       await loadMemory();
@@ -1007,33 +1216,7 @@ export async function POST(
         ...incoming,
       ];
 
-    if (
-      shouldForceWebSearch(
-        lastUser?.content || "",
-      )
-    ) {
-      try {
-        const result =
-          await webSearch(
-            lastUser?.content || "",
-          );
-
-        messages.push({
-          role: "tool",
-          tool_call_id:
-            "forced-web-search",
-          content:
-            JSON.stringify({
-              success: true,
-              result,
-            }),
-        });
-      } catch {
-        // Continue without search.
-      }
-    }
-
-    let ollama =
+    const ollama =
       await callOllama(
         messages,
       );
@@ -1059,7 +1242,8 @@ export async function POST(
         const call of toolCalls
       ) {
         const name =
-          call.function?.name || "";
+          call.function?.name ||
+          "";
 
         const args =
           normalizeToolArguments(
@@ -1087,6 +1271,11 @@ export async function POST(
               }),
           });
         } catch (error: unknown) {
+          const detail =
+            error instanceof Error
+              ? error.message
+              : String(error);
+
           messages.push({
             role: "tool",
             tool_call_id:
@@ -1094,22 +1283,19 @@ export async function POST(
             content:
               JSON.stringify({
                 success: false,
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : String(error),
+                error: detail,
               }),
           });
         }
       }
 
-      ollama =
+      const final =
         await callOllama(
           messages,
         );
 
       assistant =
-        ollama.message;
+        final.message;
     }
 
     const answer =
@@ -1123,34 +1309,8 @@ export async function POST(
       );
     }
 
-    const stream =
-      new ReadableStream<Uint8Array>({
-        start(controller) {
-          const encoder =
-            new TextEncoder();
-
-          controller.enqueue(
-            encoder.encode(
-              openAiSse(answer),
-            ),
-          );
-
-          controller.close();
-        },
-      });
-
-    return new Response(
-      stream,
-      {
-        headers: {
-          "Content-Type":
-            "text/event-stream; charset=utf-8",
-          "Cache-Control":
-            "no-cache, no-transform",
-          Connection:
-            "keep-alive",
-        },
-      },
+    return makeSseResponse(
+      answer,
     );
   } catch (error: unknown) {
     const message =
