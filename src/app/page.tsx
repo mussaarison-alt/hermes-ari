@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import AriBargeIn from "../components/ari-barge-in";
 import AriCoreVoice from "../components/ari-core-voice";
 import NewMission from "../components/new-mission";
 import Sidebar from "../components/sidebar";
@@ -69,11 +70,7 @@ export default function Home() {
     const updated = [newMission, ...missions];
 
     setMissions(updated);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(updated),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   }
 
   const completedCount = useMemo(
@@ -116,33 +113,21 @@ export default function Home() {
         mission.completedAt,
     );
 
-    if (completed.length === 0) {
-      return "—";
-    }
+    if (completed.length === 0) return "—";
 
     const durations = completed
       .map((mission) => {
-        const start = new Date(
-          mission.createdAt,
-        ).getTime();
-
-        const end = new Date(
-          mission.completedAt!,
-        ).getTime();
-
+        const start = new Date(mission.createdAt).getTime();
+        const end = new Date(mission.completedAt!).getTime();
         return end - start;
       })
       .filter((duration) => duration >= 0);
 
-    if (durations.length === 0) {
-      return "—";
-    }
+    if (durations.length === 0) return "—";
 
     const average =
-      durations.reduce(
-        (sum, duration) => sum + duration,
-        0,
-      ) / durations.length;
+      durations.reduce((sum, duration) => sum + duration, 0) /
+      durations.length;
 
     return `${(average / 1000).toFixed(2)}s`;
   }, [missions]);
@@ -158,9 +143,7 @@ export default function Home() {
           <div className="mx-auto max-w-[1280px] px-8 py-8">
             <div className="mb-7 flex items-end justify-between">
               <div>
-                <p className="text-sm text-[#777099]">
-                  Welcome back, Mussa.
-                </p>
+                <p className="text-sm text-[#777099]">Welcome back, Mussa.</p>
 
                 <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-700">
                   Here's what's happening with{" "}
@@ -179,21 +162,18 @@ export default function Home() {
                 change={missions.length > 0 ? `${missions.length} total` : "NO DATA"}
                 accent="cyan"
               />
-
               <StatCard
                 label="Success Rate"
                 value={successRate}
                 change={finishedCount > 0 ? `${finishedCount} finished` : "NO DATA"}
                 accent="cyan"
               />
-
               <StatCard
                 label="Active Missions"
                 value={String(activeCount)}
                 change={activeCount > 0 ? "ACTIVE" : "IDLE"}
                 accent="cyan"
               />
-
               <StatCard
                 label="Avg Response"
                 value={averageResponseTime}
@@ -203,6 +183,7 @@ export default function Home() {
             </div>
 
             <AriCoreVoice />
+            <AriBargeIn />
           </div>
         </div>
       </section>
