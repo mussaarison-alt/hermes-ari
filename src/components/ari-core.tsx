@@ -430,7 +430,7 @@ export default function AriCore() {
         [
           ...current,
           {
-            role: "assistant",
+           role: "assistant" as const,
             content: finalResponse,
           },
         ].slice(-MAX_HISTORY),
