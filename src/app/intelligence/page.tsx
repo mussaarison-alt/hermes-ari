@@ -19,9 +19,7 @@ import {
 
 import Sidebar from "../../components/sidebar";
 import Topbar from "../../components/topbar";
-
-const OSIRIS_URL =
-  "https://osirisai.live/?layers=maritime,cctv,cctv_previews,live_news,earthquakes,global_incidents,day_night,cables,sdk_sea,sdk_air,sdk_naval";
+import IntelligenceMap from "../../components/intelligence-map";
 
 type OsirisStats = {
   flights?: number;
@@ -33,6 +31,8 @@ type OsirisStats = {
 };
 
 const layers = [
+  { label: "Flights", icon: Plane, active: true },
+  { label: "Satellites", icon: Satellite, active: true },
   { label: "Maritime", icon: Ship, active: true },
   { label: "CCTV", icon: Radio, active: true },
   { label: "CCTV Previews", icon: Radio, active: false },
@@ -63,10 +63,7 @@ export default function IntelligencePage() {
 
     async function loadStats() {
       try {
-        const response = await fetch("/api/intelligence/stats", {
-          cache: "no-store",
-        });
-
+        const response = await fetch("/api/intelligence/stats", { cache: "no-store" });
         if (!response.ok) throw new Error("OSIRIS stats unavailable");
 
         const data = (await response.json()) as {
@@ -75,7 +72,6 @@ export default function IntelligencePage() {
         };
 
         if (cancelled) return;
-
         setStats(data.stats ?? null);
         setStatsTimestamp(data.timestamp ?? null);
         setStatsError(false);
@@ -94,10 +90,7 @@ export default function IntelligencePage() {
   }, []);
 
   function toggleLayer(label: string) {
-    setActiveLayers((current) => ({
-      ...current,
-      [label]: !current[label],
-    }));
+    setActiveLayers((current) => ({ ...current, [label]: !current[label] }));
   }
 
   const liveMetrics = [
@@ -158,7 +151,7 @@ export default function IntelligencePage() {
             </div>
 
             <div className="mb-4 flex items-center justify-between px-1 text-[10px] text-[#7892a6]">
-              <span>OSIRIS aggregate feed counters</span>
+              <span>OSIRIS live feed layer</span>
               <span>
                 {statsTimestamp
                   ? `Updated ${new Date(statsTimestamp).toLocaleTimeString()}`
@@ -184,11 +177,11 @@ export default function IntelligencePage() {
                 </div>
 
                 <div className="relative h-[680px] overflow-hidden bg-[#06111c]">
-                  <iframe
-                    title="OSIRIS Global Intelligence Map"
-                    src={OSIRIS_URL}
-                    className="absolute inset-0 h-full w-full border-0"
-                    loading="lazy"
+                  <IntelligenceMap
+                    showEarthquakes={Boolean(activeLayers["Earthquakes"])}
+                    showFlights={Boolean(activeLayers["Flights"])}
+                    showMaritime={Boolean(activeLayers["Maritime"])}
+                    showSatellites={Boolean(activeLayers["Satellites"])}
                   />
 
                   <div className="pointer-events-none absolute bottom-5 left-5 z-10 flex items-end gap-3">
@@ -200,7 +193,7 @@ export default function IntelligencePage() {
                       <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6deaff]">
                         <Sparkles size={12} /> ARI
                       </div>
-                      Intelligence visualization is online. Live OSIRIS counters are now connected; next ARI will control the map and pull the underlying feeds directly.
+                      The OSIRIS feeds are now connected directly. ARI can work from the live intelligence data instead of relying on the OSIRIS website iframe.
                     </div>
                   </div>
                 </div>
@@ -217,13 +210,14 @@ export default function IntelligencePage() {
                     {layers.map((layer) => {
                       const Icon = layer.icon;
                       const active = Boolean(activeLayers[layer.label]);
+                      const wired = ["Flights", "Satellites", "Maritime", "Earthquakes"].includes(layer.label);
 
                       return (
                         <button
                           key={layer.label}
                           type="button"
-                          onClick={() => toggleLayer(layer.label)}
-                          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition hover:bg-[#edf7fc]"
+                          onClick={() => wired && toggleLayer(layer.label)}
+                          className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition ${wired ? "hover:bg-[#edf7fc]" : "cursor-default opacity-80"}`}
                         >
                           <span className="flex items-center gap-2 text-xs text-[#496a87]">
                             <Icon size={14} className={active ? "text-[#168fba]" : "text-[#9ab0c1]"} />
