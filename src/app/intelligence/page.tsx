@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -23,6 +23,15 @@ import Topbar from "../../components/topbar";
 const OSIRIS_URL =
   "https://osirisai.live/?layers=maritime,cctv,cctv_previews,live_news,earthquakes,global_incidents,day_night,cables,sdk_sea,sdk_air,sdk_naval";
 
+type OsirisStats = {
+  flights?: number;
+  sats?: number;
+  cctv?: number;
+  weather?: number;
+  nuclear?: number;
+  incidents?: number;
+};
+
 const layers = [
   { label: "Maritime", icon: Ship, active: true },
   { label: "CCTV", icon: Radio, active: true },
@@ -37,10 +46,52 @@ const layers = [
   { label: "SDK Naval", icon: ShieldAlert, active: false },
 ];
 
+function formatCount(value: number | undefined) {
+  return typeof value === "number" ? value.toLocaleString() : "—";
+}
+
 export default function IntelligencePage() {
   const [activeLayers, setActiveLayers] = useState(
     Object.fromEntries(layers.map((layer) => [layer.label, layer.active])),
   );
+  const [stats, setStats] = useState<OsirisStats | null>(null);
+  const [statsTimestamp, setStatsTimestamp] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStats() {
+      try {
+        const response = await fetch("/api/intelligence/stats", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) throw new Error("OSIRIS stats unavailable");
+
+        const data = (await response.json()) as {
+          stats?: OsirisStats;
+          timestamp?: string;
+        };
+
+        if (cancelled) return;
+
+        setStats(data.stats ?? null);
+        setStatsTimestamp(data.timestamp ?? null);
+        setStatsError(false);
+      } catch {
+        if (!cancelled) setStatsError(true);
+      }
+    }
+
+    loadStats();
+    const interval = window.setInterval(loadStats, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   function toggleLayer(label: string) {
     setActiveLayers((current) => ({
@@ -48,6 +99,13 @@ export default function IntelligencePage() {
       [label]: !current[label],
     }));
   }
+
+  const liveMetrics = [
+    ["Flights", formatCount(stats?.flights), Plane],
+    ["Satellites", formatCount(stats?.sats), Satellite],
+    ["CCTV", formatCount(stats?.cctv), Radio],
+    ["Incidents", formatCount(stats?.incidents), AlertTriangle],
+  ] as const;
 
   return (
     <main className="flex h-screen overflow-hidden bg-[#eef6fb]">
@@ -72,10 +130,40 @@ export default function IntelligencePage() {
               </div>
 
               <div className="flex items-center gap-2 rounded-xl border border-[#b9d8ea]/70 bg-white/70 px-3 py-2 text-xs text-[#52708a] shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-[#32d47b] shadow-[0_0_8px_rgba(50,212,123,0.65)]" />
+                <span
+                  className={`h-2 w-2 rounded-full ${statsError ? "bg-[#ff5d5d]" : "bg-[#32d47b]"} shadow-[0_0_8px_rgba(50,212,123,0.65)]`}
+                />
                 OSIRIS feed
-                <span className="text-[#91a8bb]">connected</span>
+                <span className="text-[#91a8bb]">
+                  {statsError ? "unavailable" : stats ? "connected" : "connecting"}
+                </span>
               </div>
+            </div>
+
+            <div className="mb-5 grid grid-cols-4 gap-3">
+              {liveMetrics.map(([label, value, Icon]) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-[#b9d8ea]/70 bg-white/75 px-4 py-3 shadow-[0_8px_22px_rgba(74,122,164,0.07)]"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7892a6]">
+                      {label}
+                    </span>
+                    <Icon size={15} className="text-[#268cad]" />
+                  </div>
+                  <p className="mt-1 text-xl font-semibold text-[#1b2e45]">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mb-4 flex items-center justify-between px-1 text-[10px] text-[#7892a6]">
+              <span>OSIRIS aggregate feed counters</span>
+              <span>
+                {statsTimestamp
+                  ? `Updated ${new Date(statsTimestamp).toLocaleTimeString()}`
+                  : "Waiting for live data"}
+              </span>
             </div>
 
             <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-5">
@@ -112,7 +200,7 @@ export default function IntelligencePage() {
                       <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6deaff]">
                         <Sparkles size={12} /> ARI
                       </div>
-                      Intelligence visualization is online. This is the first shell; next ARI will control the map and pull the underlying feeds directly.
+                      Intelligence visualization is online. Live OSIRIS counters are now connected; next ARI will control the map and pull the underlying feeds directly.
                     </div>
                   </div>
                 </div>
@@ -141,12 +229,8 @@ export default function IntelligencePage() {
                             <Icon size={14} className={active ? "text-[#168fba]" : "text-[#9ab0c1]"} />
                             {layer.label}
                           </span>
-                          <span
-                            className={`relative h-4 w-7 rounded-full transition ${active ? "bg-[#35c9ef]" : "bg-[#b9cbd7]"}`}
-                          >
-                            <span
-                              className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition ${active ? "left-3.5" : "left-0.5"}`}
-                            />
+                          <span className={`relative h-4 w-7 rounded-full transition ${active ? "bg-[#35c9ef]" : "bg-[#b9cbd7]"}`}>
+                            <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition ${active ? "left-3.5" : "left-0.5"}`} />
                           </span>
                         </button>
                       );
